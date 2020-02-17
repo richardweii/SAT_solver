@@ -41,25 +41,28 @@ typedef struct CNF
     Clause_ref* variable;   // 指向子句引用区域的指针, 构建 变量-子句引用
 }* CNF;
 
-/*********************** 函数声明 *************************/
+/*********************** 函数接口 *************************/
 // #ifdef  _PARSE_
-/* CNF公式解析模块 */
+
+/********************* CNF公式解析模块 ********************/
 
 /****************************************
  * 函数:input_parse
  * 参数:
  *      path: 输入文件的路径
  * 返回值: cnf公式
- * 作用: 对读入的cnf文件进行公式解析
+ * 条件: 文件路径存在,且内容格式正确
+ * 功能: 对读入的cnf文件进行公式解析
  ****************************************/
-CNF input_parse(char* path);
+CNF input_parse(const char* path);
 
 /****************************************
  * 函数: formula_display
  * 输入参数:
  *      cnf: cnf公式
  * 返回值: 无
- * 作用: 将建立的cnf公式输出
+ * 条件: cnf公式已成功建立
+ * 功能: 将建立的cnf公式输出
  ****************************************/
 void formula_display(CNF cnf);
 
@@ -70,8 +73,11 @@ void formula_display(CNF cnf);
  *      cnf: 最终的cnf公式
  *      result: 可满足性
  *      time: DPLL算法运行时间
+ * 条件: 路径正确, DPLL结果有效
  * 功能: 将DPLL的结果保存在文件中
  ****************************************/
-int res_save(char* path, CNF cnf, int result, int time);
+int res_save(const char* path, CNF cnf, int result, int time);
+
+
 // #endif
 #endif
