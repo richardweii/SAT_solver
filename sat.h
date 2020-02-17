@@ -8,7 +8,7 @@
 typedef struct literal_
 {
     int order; // 变量序号, 用于访问变量
-    int sign; // 文字的正负
+    int sign; // 文字的正负:0, 1 分别表示 正, 负
     int flag;   // 文字的满足状态:1, 0, -1分别表示满足,不满足,待满足
     struct literal_* next;   // 构建链表
 }* Literal;
@@ -33,7 +33,7 @@ typedef struct clause_ref_
 }* Clause_ref;
 
 /* CNF公式 */
-typedef struct CNF
+typedef struct cnf_
 {
     int variable_num;   // 子句集中所含的变元数量
     int clause_num;     // 子句集中所含子句的数量 
