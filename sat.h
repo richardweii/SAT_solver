@@ -1,6 +1,6 @@
 /* 此头文件定义了项目用到的数据结构和声明了部分通用函数接口 */
-#ifndef _SAT_H_
-#define _SAT_H_
+#ifndef INC_SAT_H_
+#define INC_SAT_H_
 
 /*********************** 数据存储结构 ************************/
 
@@ -27,7 +27,12 @@ typedef struct clause_ref_
     union
     {
         int order;  // 子句引用序号
-        int flag;   // 变量真值状态, 1, 0, -1表示满足, 不满足, 待满足
+        int flag;   // (链表头)变量真值状态, 1, 0, -1表示满足, 不满足, 待满足
+    };
+    union
+    {
+        int sign;   // 文字的正负
+        int frequency; // (链表头)变量被引用的次数
     };
     struct clause_ref_* next; // 构建链表
 }* Clause_ref;
@@ -42,9 +47,7 @@ typedef struct cnf_
 }* CNF;
 
 /*********************** 函数接口 *************************/
-// #ifdef  _PARSE_
-
-/********************* CNF公式解析模块 ********************/
+#ifdef  _PARSE_
 
 /****************************************
  * 函数:input_parse
@@ -65,7 +68,9 @@ CNF input_parse(const char* path);
  * 功能: 将建立的cnf公式输出
  ****************************************/
 void formula_display(CNF cnf);
+#endif
 
+#ifdef _RES_SAVE
 /****************************************
  * 函数名:res_save
  * 输入参数:
@@ -77,7 +82,7 @@ void formula_display(CNF cnf);
  * 功能: 将DPLL的结果保存在文件中
  ****************************************/
 int res_save(const char* path, CNF cnf, int result, int time);
-
+#endif
 
 // #endif
 #endif
