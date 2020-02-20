@@ -1,8 +1,9 @@
-/* 输入解析和输出保存模块 */
+/* 输入解析模块 */
+#define _CNFPARSE_
+#define MAX_BUFFER 100
 #include"sat.h"
 #include<stdio.h>
 #include<stdlib.h>
-#define MAX_BUFFER 100
 
 CNF input_parse(const char* path)
 {
@@ -215,8 +216,7 @@ void formula_display(CNF cnf)
         printf("}\n");
     }
 }
-// ********TEST*******
-#ifndef INC_CNFPARSE_
+#ifndef _CNFPARSE_INC
 // 通过带命令行参数的程序来验证cnf公式的正确性
 int main(int argc, char const *argv[])
 {
