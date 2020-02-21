@@ -85,7 +85,7 @@ CNF input_parse(const char* path)
                 for(int i = 0; i < cnf->variable_num; i++)
                 {
                     cnf->variable[i] = (Clause_ref)malloc(sizeof(struct clause_ref_));
-                    cnf->variable[i]->flag = -1;
+                    cnf->variable[i]->value = -1;
                     cnf->variable[i]->next = NULL;
                     cnf->variable[i]->sign = -1;
                     cnf->variable[i]->frequency = 0;
@@ -119,7 +119,7 @@ CNF input_parse(const char* path)
                 {
                     if(buffer[i] == '-')
                     {
-                        sign = 1;
+                        sign = 0;
                         num = buffer[++i] - '0';
                         while(buffer[++i] != ' ')
                         {
@@ -142,7 +142,7 @@ CNF input_parse(const char* path)
                     }
                     else if(buffer[i] > '0' && buffer[i] <= '9')
                     {
-                        sign = 0;
+                        sign = 1;
                         num = buffer[i] - '0';
                         while(buffer[++i] != ' ')
                         {
@@ -192,9 +192,9 @@ void formula_display(CNF cnf)
         while(l != NULL)
         {
             if(l->sign)
-                printf("-%d ", l->order + 1);
-            else
                 printf("%d ", l->order + 1);
+            else
+                printf("-%d ", l->order + 1);
             l = l->next;
         }
         printf("}\n");
@@ -208,15 +208,15 @@ void formula_display(CNF cnf)
         while(cr != NULL)
         {
             if(cr->sign)
-                printf("(-)%d ", cr->order + 1);
-            else
                 printf("%d ", cr->order + 1);
+            else
+                printf("(-)%d ", cr->order + 1);
             cr = cr->next;
         }
         printf("}\n");
     }
 }
-#ifndef _CNFPARSE_INC
+#ifndef _CNFPARSE_INC_
 // 通过带命令行参数的程序来验证cnf公式的正确性
 int main(int argc, char const *argv[])
 {

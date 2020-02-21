@@ -8,15 +8,15 @@
 /* 变元 */
 typedef struct variable_
 {
-    int order;
-    int value;
+    int order;  // 变元序号
+    int value;  // 变元真值
 }Variable;
 
 /* 文字 */
 typedef struct literal_
 {
     int order; // 变量序号, 用于访问变量
-    int sign; // 文字的正负:0, 1 分别表示 正, 负
+    int sign; // 文字的正负:1, 0 分别表示 正, 负
     int flag;   // 文字的满足状态:1, 0, -1分别表示满足,不满足,待满足
     struct literal_* next;   // 构建链表
 }* Literal;
@@ -35,11 +35,11 @@ typedef struct clause_ref_
     union
     {
         int order;  // 子句引用序号
-        int flag;   // (链表头)变量真值状态, 1, 0, -1表示满足, 不满足, 待满足
+        int value;   // (链表头)变量真值状态, 1, 0, -1表示满足, 不满足, 待满足
     };
     union
     {
-        int sign;   // 文字的正负
+        int sign;   // 文字的正负1、0分别表示正负
         int frequency; // (链表头)变量被引用的次数
     };
     struct clause_ref_* next; // 构建链表
@@ -57,12 +57,17 @@ typedef struct cnf_
 /* 搜索链，记录DPLL过程，可进行有效链状回溯 */
 typedef struct node_
 {
-    int variable_order; // 选取的中心变元的序号
-    int flag;   // 变元在当前节点的真值
+    Variable var;
     int fixed;  // 变元的真值是否固定
     struct node_* father;   // 父节点
     struct node_* child; // 子节点
 }* Node;
+
+typedef struct list_
+{
+    Node head;
+    Node tail;
+}List;
 
 /* 运行结果 */
 typedef struct result_
@@ -70,7 +75,7 @@ typedef struct result_
     int sat;    // 可满足性，1、0分别表示满足和不满足
     int time;   // 算法运行的时间
     int cut;    // dpll规则成功运用的次数，作为搜索指标参考
-    Node search_list; // 搜索链用来得到变量的赋值情况
+    List search_list; // 搜索链用来得到变量的赋值情况
 }Result;
 /*********************** 函数接口 *************************/
 #ifdef  _CNFPARSE_
@@ -115,6 +120,7 @@ int res_save(const char* path, Result res);
 #ifdef _DPLL_
 // DPLL算法模块的函数接口
 
+
 /****************************************
  * 函数：DPLL
  * 功能：DPLL算法的入口，进行DPLL算法的运行
@@ -125,6 +131,7 @@ int res_save(const char* path, Result res);
  ****************************************/
 Result DPLL(CNF cnf);
 
+
 /****************************************
  * 函数：single_detect
  * 功能：将单子句中的文字变为满足状态，同时对其他子句中的该变元进行确定性赋值，将该变元添加到搜索链尾
@@ -133,17 +140,8 @@ Result DPLL(CNF cnf);
  *      cnf：cnf公式
  * 返回值：成功运用单子句规则的次数
  ****************************************/
-int single_detect(Node seach_list, CNF cnf);
+int single_detect(List search_list, CNF cnf);
 
-/****************************************
- * 函数：pure_detect
- * 功能：将 在所有子句中都为同一符号的变元赋值，并将该变元添加到搜索链尾
- * 输入参数：
- *      search_list：搜索链
- *      cnf：cnf公式
- * 返回值：成功运用纯文字规则的次数
- ****************************************/
-int pure_detect(Node search_list, CNF cnf);
 
 /****************************************
  * 函数：assign_add
@@ -151,11 +149,11 @@ int pure_detect(Node search_list, CNF cnf);
  * 输入参数：
  *      search_list：搜索链
  *      cnf：cnf公式
- *      center_variable：选好的中心变元
- *      value：赋给变元的真假值，1、0分别为真假
+ *      center_var：选好的中心变元
  * 返回值：为变元指定真值之后cnf公式的满足情况，1，0，-1分别表示已满足，不满足和待满足
  ****************************************/
-int assign_add(Node search_list, CNF cnf, int center_variable, int value);
+int assign_add(List search_list, CNF cnf, Variable center_var);
+
 
 /****************************************
  * 函数：assign_modify
@@ -166,7 +164,19 @@ int assign_add(Node search_list, CNF cnf, int center_variable, int value);
  * 条件：搜索链末尾变元的真值尚未固定
  * 返回值：为变元指定真值之后cnf公式的满足情况，1，0，-1分别表示已满足，不满足和待满足
  ****************************************/
-int assign_modify(Node search_list, CNF cnf);
+int assign_modify(List search_list, CNF cnf);
+
+
+/****************************************
+ * 函数：update_cnf
+ * 功能：按照变元的赋予真值情况更新cnf公式，assign_add 和assign_modify的基础函数
+ * 参数：
+ *      v：变元
+ *      cnf：当前的cnf公式
+ * 返回值：更新之后cnf公式的状态，1、0和-1分别表示满足、不满足和待满足
+ ****************************************/
+int update_cnf(Variable v, CNF cnf);
+
 
 /****************************************
  * 函数：check_sat
@@ -177,6 +187,7 @@ int assign_modify(Node search_list, CNF cnf);
  ****************************************/
 int check_sat(CNF cnf);
 
+
 /****************************************
  * 函数：var_decision
  * 功能：从当前的cnf公式中找出一个中心变元进行化简
@@ -186,6 +197,7 @@ int check_sat(CNF cnf);
  ****************************************/
 Variable var_decision(CNF cnf);
 
+
 /****************************************
  * 函数：backing
  * 功能：回溯搜索链，直到上一个未固定的变元，且在回溯过程中恢复cnf公式和删除搜索链中被回溯的部分
@@ -193,9 +205,10 @@ Variable var_decision(CNF cnf);
  *      search_list：搜索链
  *      cnf：cnf公式
  * 返回值：回溯成功返回1，否则返回0
- * 条件：当前搜索过程使得公式不满足
+ * 条件：当前搜索过程使得公式不满足，使用该函数之后需要一次assign_modify过程
  ****************************************/
-int backing(Node search_list, CNF cnf);
+int backing(List search_list, CNF cnf);
+
 
 /****************************************
  * 函数：searching_start
@@ -205,7 +218,7 @@ int backing(Node search_list, CNF cnf);
  * 返回值：搜索链
  * 条件：仅在搜索开始时用于创建搜索链
  ****************************************/
-Node searching_start(CNF cnf);
+List searching_start(CNF cnf);
 
 #endif
 
