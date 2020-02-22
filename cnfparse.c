@@ -1,6 +1,6 @@
 /* 输入解析模块 */
 #define _CNFPARSE_
-#define MAX_BUFFER 100
+#define MAX_BUFFER 1000
 #include"sat.h"
 #include<stdio.h>
 #include<stdlib.h>

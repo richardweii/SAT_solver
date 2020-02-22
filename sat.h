@@ -67,13 +67,13 @@ typedef struct list_
 {
     Node head;
     Node tail;
-}List;
+}* List;
 
 /* 运行结果 */
 typedef struct result_
 {
     int sat;    // 可满足性，1、0分别表示满足和不满足
-    int time;   // 算法运行的时间
+    double time;   // 算法运行的时间
     int cut;    // dpll规则成功运用的次数，作为搜索指标参考
     List search_list; // 搜索链用来得到变量的赋值情况
 }Result;
