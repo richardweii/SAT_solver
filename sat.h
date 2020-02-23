@@ -32,18 +32,19 @@ typedef struct clause_
 /* 子句引用 */
 typedef struct clause_ref_
 {
-    union
-    {
-        int order;  // 子句引用序号
-        int value;   // (链表头)变量真值状态, 1, 0, -1表示满足, 不满足, 待满足
-    };
-    union
-    {
-        int sign;   // 文字的正负1、0分别表示正负
-        int frequency; // (链表头)变量被引用的次数
-    };
+    int order;  // 子句引用序号
+    int sign;   // 文字的正负1、0分别表示正负
     struct clause_ref_* next; // 构建链表
 }* Clause_ref;
+
+/* 子句引用头 */
+typedef struct clause_ref_head_
+{
+    int positive_freq;  // 变元被正引用的次数
+    int negative_freq;  // 变元被负引用的次数
+    int value;  // 变元的赋值
+    Clause_ref clause_ref; // 子句引用链表
+}* Clause_ref_head;
 
 /* CNF公式 */
 typedef struct cnf_
@@ -51,7 +52,7 @@ typedef struct cnf_
     int variable_num;   // 子句集中所含的变元数量
     int clause_num;     // 子句集中所含子句的数量 
     Clause* clause_set;     // 指向子句指针区域的指针, 构建 子句-文字 邻接表
-    Clause_ref* variable;   // 指向子句引用区域的指针, 构建 变量-子句引用
+    Clause_ref_head* variable;   // 指向子句引用区域的指针, 构建 变量-子句引用
 }* CNF;
 
 /* 搜索链，记录DPLL过程，可进行有效链状回溯 */
@@ -73,8 +74,10 @@ typedef struct list_
 typedef struct result_
 {
     int sat;    // 可满足性，1、0分别表示满足和不满足
+    int times;  // 变量决策的次数
     double time;   // 算法运行的时间
-    int cut;    // dpll规则成功运用的次数，作为搜索指标参考
+    int cut_1;    // dpll规则成功运用的次数，作为搜索指标参考
+    int cut_2;
     List search_list; // 搜索链用来得到变量的赋值情况
 }Result;
 /*********************** 函数接口 *************************/
@@ -142,17 +145,26 @@ Result DPLL(CNF cnf);
  ****************************************/
 int single_detect(List search_list, CNF cnf);
 
-
 /****************************************
- * 函数：assign_add
- * 功能：将已选好的中心变元赋予一个真假值，并将其添加到搜索链末尾，同时维护子句的满足情况和长度和变量的引用次数
+ * 函数：pure_detect
+ * 功能：纯文字规则，将只有一种文字符号的变元确定性赋值，并将其添加到搜索链尾
  * 输入参数：
  *      search_list：搜索链
  *      cnf：cnf公式
- *      center_var：选好的中心变元
+ * 返回值：成功运用纯文字规则的次数
+ ****************************************/
+int pure_detect(List search_list, CNF cnf);
+/****************************************
+ * 函数：assign_add
+ * 功能：为变元赋予一个真假值，并将其添加到搜索链末尾，同时维护子句的满足情况和长度和变量的引用次数
+ * 输入参数：
+ *      search_list：搜索链
+ *      cnf：cnf公式
+ *      var：选好的中心变元
+ *      fixed：该变元是否固定
  * 返回值：为变元指定真值之后cnf公式的满足情况，1，0，-1分别表示已满足，不满足和待满足
  ****************************************/
-int assign_add(List search_list, CNF cnf, Variable center_var);
+int assign_add(List search_list, CNF cnf, Variable var, int fixed);
 
 
 /****************************************

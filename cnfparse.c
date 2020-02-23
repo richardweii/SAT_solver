@@ -80,15 +80,14 @@ CNF input_parse(const char* path)
                     cnf->clause_set[i]->length = 0;
                 }
 
-                cnf->variable = (Clause_ref* )malloc(sizeof(Clause_ref) * cnf->variable_num);
+                cnf->variable = (Clause_ref_head* )malloc(sizeof(Clause_ref_head) * cnf->variable_num);
 
                 for(int i = 0; i < cnf->variable_num; i++)
                 {
-                    cnf->variable[i] = (Clause_ref)malloc(sizeof(struct clause_ref_));
+                    cnf->variable[i] = (Clause_ref_head)malloc(sizeof(struct clause_ref_head_));
                     cnf->variable[i]->value = -1;
-                    cnf->variable[i]->next = NULL;
-                    cnf->variable[i]->sign = -1;
-                    cnf->variable[i]->frequency = 0;
+                    cnf->variable[i]->clause_ref = NULL;
+                    cnf->variable[i]->positive_freq = cnf->variable[i]->negative_freq = 0;
                 }
 
                 if(line == -1)
@@ -133,12 +132,12 @@ CNF input_parse(const char* path)
                         cnf->clause_set[line]->l_head->flag = -1;
                         cnf->clause_set[line]->length += 1;
                         
-                        cr = cnf->variable[num - 1]->next;
-                        cnf->variable[num - 1]->next = (Clause_ref)malloc(sizeof(struct clause_ref_));
-                        cnf->variable[num - 1]->next->next = cr;
-                        cnf->variable[num - 1]->next->order = line;
-                        cnf->variable[num - 1]->next->sign = sign;
-                        cnf->variable[num - 1]->frequency += 1;
+                        cr = cnf->variable[num - 1]->clause_ref;
+                        cnf->variable[num - 1]->clause_ref = (Clause_ref)malloc(sizeof(struct clause_ref_));
+                        cnf->variable[num - 1]->clause_ref->next = cr;
+                        cnf->variable[num - 1]->clause_ref->order = line;
+                        cnf->variable[num - 1]->clause_ref->sign = sign;
+                        cnf->variable[num - 1]->negative_freq += 1;
                     }
                     else if(buffer[i] > '0' && buffer[i] <= '9')
                     {
@@ -156,12 +155,12 @@ CNF input_parse(const char* path)
                         cnf->clause_set[line]->l_head->flag = -1;
                         cnf->clause_set[line]->length += 1;
 
-                        cr = cnf->variable[num - 1]->next;
-                        cnf->variable[num - 1]->next = (Clause_ref)malloc(sizeof(struct clause_ref_));
-                        cnf->variable[num - 1]->next->next = cr;
-                        cnf->variable[num - 1]->next->order = line;
-                        cnf->variable[num - 1]->next->sign = sign;
-                        cnf->variable[num - 1]->frequency += 1;
+                        cr = cnf->variable[num - 1]->clause_ref;
+                        cnf->variable[num - 1]->clause_ref = (Clause_ref)malloc(sizeof(struct clause_ref_));
+                        cnf->variable[num - 1]->clause_ref->next = cr;
+                        cnf->variable[num - 1]->clause_ref->order = line;
+                        cnf->variable[num - 1]->clause_ref->sign = sign;
+                        cnf->variable[num - 1]->positive_freq += 1;
                     }
                     else if(buffer[i] == '0')
                     {
@@ -203,8 +202,9 @@ void formula_display(CNF cnf)
     printf("\ndisplay the clause in variable-clause_ref method\n");
     for(int i = 0; i < cnf->variable_num; i++)
     {
-        cr = cnf->variable[i]->next;
-        printf("variable %d in frequency of %d occurs in these clause : { ", i + 1, cnf->variable[i]->frequency);
+        cr = cnf->variable[i]->clause_ref;
+        printf("variable %d in frequency of %d/%d occurs in these clause : { ",
+            i + 1, cnf->variable[i]->positive_freq, cnf->variable[i]->negative_freq);
         while(cr != NULL)
         {
             if(cr->sign)

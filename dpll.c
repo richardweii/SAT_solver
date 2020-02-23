@@ -1,10 +1,18 @@
 /* DPLL算法 */
 #define _DPLL_
+#define B_PLAN
 #include<stdio.h>
 #include<stdlib.h>
 #include<time.h>
 #include<stdbool.h>
 #include"sat.h"
+#define POSITIVE 1
+#define NEGATIVE 0
+
+double var_time = 0;
+double single_time = 0;
+double update_time = 0;
+double pure_time = 0;
 
 Result DPLL(CNF cnf)
 {
@@ -12,36 +20,48 @@ Result DPLL(CNF cnf)
     clock_t start_t, finish_t;  // 时刻点
     start_t = clock();  // 算法开始
     List search_list = searching_start(cnf);    // 获得搜索链头
-    res.cut = 0;
+    res.cut_1 = 0;
+    res.cut_2 = 0;
+    res.times = 0;
     Variable center_var; // 中间变量，记录每一步的中心变元
     int sat = -1;    // 记录当前cnf公式的满足状态
-    while(true)
-    {
-        while(sat == -1)
+    res.cut_1 += single_detect(search_list, cnf);
+    res.cut_2 += pure_detect(search_list, cnf);
+    if(check_sat(cnf) == 0)
+        res.sat = 0;
+    else
+    {   
+        while(true)
         {
-            center_var = var_decision(cnf);
-            sat = assign_add(search_list, cnf, center_var);
-            if(sat != -1)
+            while(sat == -1)
+            {
+                res.times++;
+                center_var = var_decision(cnf);
+                sat = assign_add(search_list, cnf, center_var, false);
+                if(sat != -1)
+                    break;
+                res.cut_1 += single_detect(search_list, cnf);
+                res.cut_2 += pure_detect(search_list, cnf);
+                sat = check_sat(cnf);
+            }
+            // 出口一：公式可满足
+            if(sat == 1)
+            {
+                res.sat = sat;
                 break;
-            res.cut += single_detect(search_list, cnf);
+            }
+            // 出口二：无法向上回溯
+            if(!backing(search_list, cnf))
+            {
+                res.sat = sat;
+                break;
+            }
+            sat = assign_modify(search_list, cnf);
+            // 变量决策函数能保证每次选择中心变元时一定是该变元的表象最优情况，回溯到该节点时不会直接通过修改而使公式满足
+            res.cut_1 += single_detect(search_list, cnf);
+            res.cut_2 += pure_detect(search_list, cnf);
             sat = check_sat(cnf);
         }
-        // 出口一：公式可满足
-        if(sat == 1)
-        {
-            res.sat = sat;
-            break;
-        }
-        // 出口二：无法向上回溯
-        if(!backing(search_list, cnf))
-        {
-            res.sat = sat;
-            break;
-        }
-        sat = assign_modify(search_list, cnf);
-        // 变量决策函数能保证每次选择中心变元时一定是该变元的表象最优情况，回溯到该节点时不会直接通过修改而使公式满足
-        res.cut += single_detect(search_list, cnf);
-        sat = check_sat(cnf);
     }
     res.search_list = search_list;
     finish_t = clock();
@@ -78,10 +98,12 @@ int check_sat(CNF cnf)
 
 int update_cnf(Variable v, CNF cnf)
 {
+    clock_t s, t;
+    s = clock();
     int order = v.order;
     int value = v.value;
     cnf->variable[order]->value = value;
-    Clause_ref cr = cnf->variable[order]->next;
+    Clause_ref cr = cnf->variable[order]->clause_ref;
     Literal L;
     for (; cr != NULL; cr = cr->next)
     {
@@ -102,7 +124,12 @@ int update_cnf(Variable v, CNF cnf)
             for(L = cnf->clause_set[cr->order]->l_head; L != NULL; L = L->next)
             {
                 if(cnf->variable[L->order]->value == -1)
-                    cnf->variable[L->order]->frequency -= 1;
+                {
+                    if(L->sign == 1)
+                        cnf->variable[L->order]->positive_freq -= 1;
+                    else
+                        cnf->variable[L->order]->negative_freq -= 1;
+                }
             }
         }
         else
@@ -112,20 +139,22 @@ int update_cnf(Variable v, CNF cnf)
                 cnf->clause_set[cr->order]->flag = 0;
         }
     }
+    t = clock();
+    update_time += (double)(t - s)/ CLOCKS_PER_SEC;
     return check_sat(cnf);
 }
 
-int assign_add(List search_list, CNF cnf, Variable center_var)
+int assign_add(List search_list, CNF cnf, Variable var, int fixed)
 {
     Node p =(Node)malloc(sizeof(struct node_));
     p->child = NULL;
     p->father = search_list->tail;
-    p->fixed = 0;
-    p->var.order = center_var.order;
-    p->var.value = center_var.value;
+    p->fixed = fixed == 1 ? 1 : 0;
+    p->var.order = var.order;
+    p->var.value = var.value;
     search_list->tail->child = p;
     search_list->tail = p;
-    return update_cnf(center_var, cnf);
+    return update_cnf(var, cnf);
 }
 
 int assign_modify(List search_list, CNF cnf)
@@ -142,30 +171,56 @@ int assign_modify(List search_list, CNF cnf)
 
 int single_detect(List search_list, CNF cnf)
 {
+    clock_t s, t;
     int count = 0;
-    Node p;
     Variable v;
     Literal L;
+    s = clock();
     for(int i = 0; i < cnf->clause_num; i++)
     {
         if(cnf->clause_set[i]->length == 1 && cnf->clause_set[i]->flag == -1)
         {
             L = cnf->clause_set[i]->l_head;
             for(; L != NULL && L->flag != -1; L = L->next);
-            p =(Node)malloc(sizeof(struct node_));
-            p->child = NULL;
-            p->father = search_list->tail;
-            p->fixed = 1;
-            p->var.order = L->order;
-            p->var.value = (L->sign == 1) ? 1: 0;
-            v.order = p->var.order;
-            v.value = p->var.value;
-            search_list->tail->child = p;
-            search_list->tail = p;
-            update_cnf(v, cnf);
+            v.order = L->order;
+            v.value = (L->sign == 1) ? 1: 0;
+            assign_add(search_list, cnf, v, true);
             count++;
         }
     }
+    t = clock();
+    single_time += (double)(t - s)/ CLOCKS_PER_SEC;
+    return count;
+}
+
+int pure_detect(List search_list, CNF cnf)
+{
+    clock_t s, t;
+    s = clock();
+    int count = 0;
+    Variable v;
+    for(int i = 0; i < cnf->variable_num; i++)
+    {
+        if(cnf->variable[i]->value == -1 && (cnf->variable[i]->positive_freq + cnf->variable[i]->negative_freq) != 0)
+        {
+            if(cnf->variable[i]->positive_freq == 0)
+            {
+                v.order = i;
+                v.value = 0;
+                assign_add(search_list, cnf, v, true);
+                count++;
+            }
+            else if(cnf->variable[i]->negative_freq == 0)
+            {
+                v.order = i;
+                v.value = 1;
+                assign_add(search_list, cnf, v, true);
+                count++;
+            }
+        }
+    }
+    t = clock();
+    pure_time += (double)(t - s)/ CLOCKS_PER_SEC;
     return count;
 }
 
@@ -179,7 +234,7 @@ int backing(List search_list, CNF cnf)
     {
         v.order = search_list->tail->var.order;
         v.value = search_list->tail->var.value;
-        for(cr = cnf->variable[v.order]->next; cr != NULL; cr = cr->next)
+        for(cr = cnf->variable[v.order]->clause_ref; cr != NULL; cr = cr->next)
         {
             for(L = cnf->clause_set[cr->order]->l_head; L != NULL && L->order != v.order; L = L->next);
             if(L->flag == -1)
@@ -190,7 +245,12 @@ int backing(List search_list, CNF cnf)
                 for(L = cnf->clause_set[cr->order]->l_head; L != NULL; L = L->next)
                 {
                     if(cnf->variable[L->order]->value == -1)
-                        cnf->variable[L->order]->frequency += 1;
+                    {
+                        if(L->sign == 1)
+                            cnf->variable[L->order]->positive_freq += 1;
+                        else    
+                            cnf->variable[L->order]->negative_freq += 1;
+                    }
                 }
             }
             cnf->clause_set[cr->order]->flag = -1;
@@ -210,33 +270,91 @@ int backing(List search_list, CNF cnf)
         return 1;
 }
 
+typedef struct freq_counter
+{
+    int freq;
+    int positive;
+    int negative;
+}* Freq_counter;
+
 Variable var_decision(CNF cnf)
 {
-    int freq = 0;   // 变量被引用次数   
-    int Pfreq = 0;  // 正引用次数
-    int Nfreq = 0;  // 负引用次数
+    clock_t s, t;
+    s = clock();
+    int freq = 0;   // 变量被引用次数
+    int mark = 0;
     Variable v;
     for(int i = 0; i < cnf->variable_num; i++)
     {
-        if(cnf->variable[i]->value != -1)
-            continue;
-        if(freq <= cnf->variable[i]->frequency)
+        if(cnf->variable[i]->value == -1 && (cnf->variable[i]->negative_freq) + (cnf->variable[i]->positive_freq) > freq)
         {
-            freq = cnf->variable[i]->frequency;
             v.order = i;
+            freq = (cnf->variable[i]->negative_freq) + (cnf->variable[i]->positive_freq);
         }
     }
-    Clause_ref p = cnf->variable[v.order]->next;
-    for(; p != NULL; p = p->next)
+    v.value = cnf->variable[v.order]->positive_freq > cnf->variable[v.order]->negative_freq ? 1 : 0;
+    #ifdef B_PLAN
+    Literal L;
+    Freq_counter counter = (Freq_counter)calloc(cnf->variable_num, sizeof(struct freq_counter));
+    for(int i = 0; i < cnf->clause_num; i++)
     {
-        if(cnf->clause_set[p->order]->flag != -1)
-            continue;
-        if(p->sign == 1)
-            Pfreq++;
-        else
-            Nfreq++;
+        if(cnf->clause_set[i]->flag != 1 && cnf->clause_set[i]->length < 3)
+        {
+            mark += 1;
+            for(L = cnf->clause_set[i]->l_head; L != NULL; L = L->next)
+            {
+                if(L->flag == -1)
+                {
+                    counter[L->order].freq += 1;
+                    if(L->sign == 1)
+                        counter[L->order].positive += 1;
+                    else
+                        counter[L->order].negative += 1;
+                }
+            }
+        }
     }
-    v.value = Pfreq >= Nfreq ? 1 : 0;
+    freq = 0;
+    int count = 1;  // 频率相同变元的数量
+    for(int i = 0; i < cnf->variable_num; i++)
+    {
+        if(counter[i].freq > freq)
+        {
+            freq = counter[i].freq;
+            v.order = i;
+            count = 1;
+        }
+        else if(counter[i].freq == freq)
+        {
+            count++;
+        }
+    }
+    double inclination = 0; // 正负占比
+    double temp;    // 缓存值
+    if(count != 1)
+    {
+        for(int i = 0; i < cnf->variable_num; i++)
+        {
+            if(counter[i].freq == freq)
+            {
+                temp = (double)counter[i].positive / counter[i].freq;
+                temp = temp > 0.5 ? temp : 1 - temp;
+                if(temp > inclination)
+                {
+                    v.order = i;
+                    inclination = temp;
+                }
+            }
+        }
+    }
+    if(mark)
+    {
+        v.value = counter[v.order].positive>= counter[v.order].negative ? 1 : 0;
+    }
+    free(counter);
+    #endif
+    t = clock();
+    var_time += (double)(t - s)/ CLOCKS_PER_SEC;
     return v;
 }
 
@@ -245,26 +363,40 @@ Variable var_decision(CNF cnf)
 #include"cnfparse.c"
 int main(int argc, char const *argv[])
 {
-    if(argc != 2)
+    if(argc < 2)
     {
         printf("ERROR: need two arguments!!!");
         exit(0);
     }
-    CNF cnf = input_parse(argv[1]);
-    // formula_display(cnf);
-    Result res = DPLL(cnf);
-    printf("Result:%d time:%f\n", res.sat, res.time);
-    if(res.sat == 1)
+    char* path = "D:\\WorkSpace\\SAT\\result.res";
+    FILE* fp = fopen(path, "a+");
+    for(int i = 1; i < argc; i++)
     {
-        int i = 1;
-        Node p = res.search_list->head->child;
-        while(p != NULL)
+        var_time = 0;
+        single_time = 0;
+        update_time = 0;
+        pure_time = 0;
+        CNF cnf = input_parse(argv[i]);
+        Result res = DPLL(cnf);
+        fprintf(fp, "\nEXAMPLE:%s\n", argv[i]);
+        fprintf(fp, "Result:%d time:%f cut_single:%d cut_pure:%d times:%d\n", res.sat, res.time, res.cut_1, res.cut_2, res.times);
+        fprintf(fp, "TIME:update:%f decision:%f single:%f  pure:%f\n", update_time, var_time, single_time, pure_time);
+        if(res.sat == 1)
         {
-            printf("Level %d: the variable is %d and the value is %d\n", i, p->var.order, p->var.value);
-            i++;
-            p = p->child;
+            int i = 1;
+            Node p = res.search_list->head->child;
+            while(p != NULL)
+            {
+                fprintf(fp, "Level %d: the variable is %d and the value is %d\n", i, p->var.order + 1, p->var.value);
+                i++; 
+                p = p->child;
+            }
         }
+        printf("Finished %s\n", argv[i]);
     }
+    // CNF cnf = input_parse("D:\\WorkSpace\\SAT\\example\\sat-20.cnf");
+    // formula_display(cnf);
+    fclose(fp);
     return 0;
 }
 #endif
