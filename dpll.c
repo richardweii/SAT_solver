@@ -4,7 +4,6 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<time.h>
-#include<stdbool.h>
 #include"sat.h"
 #define POSITIVE 1
 #define NEGATIVE 0

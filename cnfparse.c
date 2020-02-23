@@ -5,7 +5,7 @@
 #include<stdio.h>
 #include<stdlib.h>
 
-CNF input_parse(const char* path)
+Solver input_parse(const char* path)
 {
     FILE* file;
     char* buffer = (char*)malloc(sizeof(char) * MAX_BUFFER);
@@ -14,18 +14,17 @@ CNF input_parse(const char* path)
         printf("ERROR: Open failed!!!\n");
         return NULL;
     }
-
+    printf("START\n");
     int i;  // 循环控制
     int num;    // 字符串转化为数字时的中介变量
     int sign;   // 表示文字的正负:0,1 分别表示正, 负
     int line = -1;   // 记录子句的行数
-    Clause_ref cr;  // l中介 子句引用 指针
-    Literal l;  // 中介 文字 指针
-    CNF cnf = (CNF)malloc(sizeof(struct cnf_));
-
-    while(!feof(file))
+    Solver solver = creat_solver();
+    while(True)
     {
         fgets(buffer, MAX_BUFFER, file);
+        if(feof(file))
+            break;
         switch (buffer[0])
         {
             // 行首为‘c’表示为注释
@@ -49,47 +48,16 @@ CNF input_parse(const char* path)
                     else if (buffer[i] <= '9' && buffer[i] >= '0')
                     {
                         // cnf后面紧跟的是变元数量
-                        cnf->variable_num = buffer[i] - '0';
+                        solver->variable_num = buffer[i] - '0';
                         while (buffer[++i] <= '9' && buffer[i] >= '0')
                         {
-                            cnf->variable_num = cnf->variable_num * 10 + (buffer[i] - '0');
+                            solver->variable_num = solver->variable_num * 10 + (buffer[i] - '0');
                         }
-
-                        while(buffer[++i] < '0' && buffer[i] >'9');
-
-                        // 子句数量
-                        cnf->clause_num = buffer[i] - '0';
-                        while (buffer[++i] <= '9' && buffer[i] >= '0')
-                        {
-                            cnf->clause_num = cnf->clause_num * 10 + (buffer[i] - '0');
-                        }
-
-                        if(buffer[i] == '\n')
-                            break;
-                        i++;
+                        break;
                     }
                 }
-                // 分配邻接表的头空间并作基本初始化
-                cnf->clause_set = (Clause* )malloc(sizeof(Clause) * cnf->clause_num);
-
-                for(int i = 0; i < cnf->clause_num; i++)
-                {
-                    cnf->clause_set[i] = (Clause)malloc(sizeof(struct clause_));
-                    cnf->clause_set[i]->flag = -1;
-                    cnf->clause_set[i]->l_head = NULL;
-                    cnf->clause_set[i]->length = 0;
-                }
-
-                cnf->variable = (Clause_ref_head* )malloc(sizeof(Clause_ref_head) * cnf->variable_num);
-
-                for(int i = 0; i < cnf->variable_num; i++)
-                {
-                    cnf->variable[i] = (Clause_ref_head)malloc(sizeof(struct clause_ref_head_));
-                    cnf->variable[i]->value = -1;
-                    cnf->variable[i]->clause_ref = NULL;
-                    cnf->variable[i]->positive_freq = cnf->variable[i]->negative_freq = 0;
-                }
-
+                solver->clause_set = creat_clause_set();
+                solver->ref_sets = creat_clause_ref_set(solver->variable_num);
                 if(line == -1)
                     line = 0;
                 else
@@ -97,7 +65,6 @@ CNF input_parse(const char* path)
                     printf("ERROR: cnf information initialization duplicates");
                     exit(0);
                 }
-
                 break;
             }
 
@@ -109,62 +76,45 @@ CNF input_parse(const char* path)
                     printf("ERROR: cnf information haven't been initialize");
                     exit(0);
                 }
-                else if(line >= cnf->clause_num)
-                {
+                printf("line:%d\n", line);
+                if(buffer[0] != '-' && (buffer[0] < '0' || buffer[0] > '9'))
                     break;
-                }
                 i = 0;
+                add_clause(solver);
+                printf("Point 1\n");
                 while (buffer[i] != '\n')
                 {
+                    printf("Point 2\n");
                     if(buffer[i] == '-')
                     {
-                        sign = 0;
+                        sign = Negative;
                         num = buffer[++i] - '0';
                         while(buffer[++i] != ' ')
                         {
                             num = num * 10 + (buffer[i] - '0');
                         }
-                        l = cnf->clause_set[line]->l_head;
-                        cnf->clause_set[line]->l_head = (Literal)malloc(sizeof(struct literal_));
-                        cnf->clause_set[line]->l_head->next = l;
-                        cnf->clause_set[line]->l_head->order = num - 1;
-                        cnf->clause_set[line]->l_head->sign = sign;
-                        cnf->clause_set[line]->l_head->flag = -1;
-                        cnf->clause_set[line]->length += 1;
-                        
-                        cr = cnf->variable[num - 1]->clause_ref;
-                        cnf->variable[num - 1]->clause_ref = (Clause_ref)malloc(sizeof(struct clause_ref_));
-                        cnf->variable[num - 1]->clause_ref->next = cr;
-                        cnf->variable[num - 1]->clause_ref->order = line;
-                        cnf->variable[num - 1]->clause_ref->sign = sign;
-                        cnf->variable[num - 1]->negative_freq += 1;
+                        add_literal(solver->clause_set[line], num - 1, sign);
+                        add_clause_ref(solver->ref_sets[num - 1], line, sign);
                     }
                     else if(buffer[i] > '0' && buffer[i] <= '9')
                     {
-                        sign = 1;
+                        printf("Point 2.1\n");
+                        sign = Positive;
                         num = buffer[i] - '0';
                         while(buffer[++i] != ' ')
                         {
                             num = num * 10 + (buffer[i] - '0');
                         }
-                        l = cnf->clause_set[line]->l_head;
-                        cnf->clause_set[line]->l_head = (Literal)malloc(sizeof(struct literal_));
-                        cnf->clause_set[line]->l_head->next = l;
-                        cnf->clause_set[line]->l_head->order = num - 1;
-                        cnf->clause_set[line]->l_head->sign = sign;
-                        cnf->clause_set[line]->l_head->flag = -1;
-                        cnf->clause_set[line]->length += 1;
-
-                        cr = cnf->variable[num - 1]->clause_ref;
-                        cnf->variable[num - 1]->clause_ref = (Clause_ref)malloc(sizeof(struct clause_ref_));
-                        cnf->variable[num - 1]->clause_ref->next = cr;
-                        cnf->variable[num - 1]->clause_ref->order = line;
-                        cnf->variable[num - 1]->clause_ref->sign = sign;
-                        cnf->variable[num - 1]->positive_freq += 1;
+                        printf("Point2.2\n");
+                        add_literal(solver->clause_set[line], num - 1, sign);
+                        printf("Point 3\n");
+                        add_clause_ref(solver->ref_sets[num - 1], line, sign);
+                        printf("Point 4\n");
                     }
                     else if(buffer[i] == '0')
                     {
                         break;
+                        printf("Point 5\n");
                     }
                     i++;
                 }
@@ -173,21 +123,88 @@ CNF input_parse(const char* path)
             }
         }
     }
-
+    printf("Input successfully!!!");
     fclose(file);
-    return cnf;
+    return solver;
 }
 
-void formula_display(CNF cnf)
+Solver creat_solver()
+{
+    Solver s = (Solver)malloc(sizeof(struct solver));
+    s->clause_num = 0;
+    s->sat = Unknown;
+    s->time = 0;
+    s->decision_times = 0;
+    s->rule_times = 0;
+    return s;
+}
+
+Clause* creat_clause_set()
+{
+    Clause* c_set = (Clause*)calloc(MAX_CAP, sizeof(Clause));
+    return c_set;
+}
+
+void add_clause(Solver solver)
+{
+    Clause c = (Clause)malloc(sizeof(Clause));
+    c->l_head = NULL;
+    c->changing_level_old = Unknown;
+    c->changing_level_now = Unknown;
+    c->length = 0;
+    c->status = Unknown;
+    solver->clause_set[solver->clause_num] = c;
+    solver->clause_num += 1;
+}
+
+void add_literal(Clause c, int var_order, Sign sign)
+{
+    Literal p = c->l_head;
+    c->l_head = malloc(sizeof(struct literal_));
+    c->l_head->order = var_order;
+    c->l_head->sign = sign;
+    c->l_head->status = Unknown;
+    c->l_head->next = p;
+    c->length += 1;
+}
+
+Clause_ref_set* creat_clause_ref_set(int var_num)
+{
+    Clause_ref_set* cr_sets = (Clause_ref_set*)malloc(sizeof(Clause_ref_set) * var_num);
+    for(int i = 0; i < var_num; i++)
+    {
+        cr_sets[i] = (Clause_ref_set)malloc(sizeof(struct clause_ref_set_));
+        cr_sets[i]->positive_score = cr_sets[i]->negative_score = 0;
+        cr_sets[i]->status = Unknown;
+        cr_sets[i]->clause_ref_head = NULL;
+    }
+    return cr_sets;
+}
+
+void add_clause_ref(Clause_ref_set cr_set, int clause_order, Sign sign)
+{
+    Clause_ref p = cr_set->clause_ref_head;
+    cr_set->clause_ref_head = (Clause_ref)malloc(sizeof(struct clause_ref_));
+    cr_set->clause_ref_head->order = clause_order;
+    cr_set->clause_ref_head->status = Unknown;
+    cr_set->clause_ref_head->sign = sign;
+    cr_set->clause_ref_head->next = p;
+    if(sign == Positive)
+        cr_set->positive_score += 1;
+    else
+        cr_set->negative_score += 1;
+}
+
+void cnf_display(Solver solver)
 {
     Literal l;  // 中介 文字 指针
     Clause_ref cr;  // 中介 子句引用 指针
     // 按子句输出cnf公式
     printf("display the clause in clause-literal method\n");
-    for(int i = 0; i < cnf->clause_num; i++)
+    for(int i = 0; i < solver->clause_num; i++)
     {
-        l = cnf->clause_set[i]->l_head;
-        printf("clause %d in length of %d : { ", i + 1, cnf->clause_set[i]->length);
+        l = solver->clause_set[i]->l_head;
+        printf("clause %d in length of %d : { ", i + 1, solver->clause_set[i]->length);
         while(l != NULL)
         {
             if(l->sign)
@@ -200,11 +217,11 @@ void formula_display(CNF cnf)
     }
     // 按变量输出cnf公式
     printf("\ndisplay the clause in variable-clause_ref method\n");
-    for(int i = 0; i < cnf->variable_num; i++)
+    for(int i = 0; i < solver->variable_num; i++)
     {
-        cr = cnf->variable[i]->clause_ref;
+        cr = solver->ref_sets[i]->clause_ref_head;
         printf("variable %d in frequency of %d/%d occurs in these clause : { ",
-            i + 1, cnf->variable[i]->positive_freq, cnf->variable[i]->negative_freq);
+            i + 1, solver->ref_sets[i]->positive_score, solver->ref_sets[i]->negative_score);
         while(cr != NULL)
         {
             if(cr->sign)
@@ -220,14 +237,15 @@ void formula_display(CNF cnf)
 // 通过带命令行参数的程序来验证cnf公式的正确性
 int main(int argc, char const *argv[])
 {
-    if(argc != 2)
-    {
-        printf("ERROR: need two arguments!!!");
-        exit(0);
-    }
+    // if(argc != 2)
+    // {
+    //     printf("ERROR: need two arguments!!!");
+    //     exit(0);
+    // }
 
-    CNF cnf = input_parse(argv[1]);
-    formula_display(cnf);
+    // Solver s = input_parse(argv[1]);
+    Solver s = input_parse("D:\\WorkSpace\\SAT\\example\\M\\mysample_sat.cnf");
+    cnf_display(s);
     return 0;
 }
 #endif
