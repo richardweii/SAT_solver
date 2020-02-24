@@ -14,7 +14,6 @@ Solver input_parse(const char* path)
         printf("ERROR: Open failed!!!\n");
         return NULL;
     }
-    printf("START\n");
     int i;  // 循环控制
     int num;    // 字符串转化为数字时的中介变量
     int sign;   // 表示文字的正负:0,1 分别表示正, 负
@@ -76,15 +75,12 @@ Solver input_parse(const char* path)
                     printf("ERROR: cnf information haven't been initialize");
                     exit(0);
                 }
-                printf("line:%d\n", line);
                 if(buffer[0] != '-' && (buffer[0] < '0' || buffer[0] > '9'))
                     break;
                 i = 0;
                 add_clause(solver);
-                printf("Point 1\n");
                 while (buffer[i] != '\n')
                 {
-                    printf("Point 2\n");
                     if(buffer[i] == '-')
                     {
                         sign = Negative;
@@ -98,23 +94,18 @@ Solver input_parse(const char* path)
                     }
                     else if(buffer[i] > '0' && buffer[i] <= '9')
                     {
-                        printf("Point 2.1\n");
                         sign = Positive;
                         num = buffer[i] - '0';
                         while(buffer[++i] != ' ')
                         {
                             num = num * 10 + (buffer[i] - '0');
                         }
-                        printf("Point2.2\n");
                         add_literal(solver->clause_set[line], num - 1, sign);
-                        printf("Point 3\n");
                         add_clause_ref(solver->ref_sets[num - 1], line, sign);
-                        printf("Point 4\n");
                     }
                     else if(buffer[i] == '0')
                     {
                         break;
-                        printf("Point 5\n");
                     }
                     i++;
                 }
@@ -123,7 +114,7 @@ Solver input_parse(const char* path)
             }
         }
     }
-    printf("Input successfully!!!");
+    printf("Input successfully!!!\n");
     fclose(file);
     return solver;
 }
@@ -131,11 +122,18 @@ Solver input_parse(const char* path)
 Solver creat_solver()
 {
     Solver s = (Solver)malloc(sizeof(struct solver));
+    s->search_tree = (Tree)malloc(sizeof(struct tree_));
+    s->search_tree->top = (Node)malloc(sizeof(struct node_));
+    s->search_tree->top->ancestor = NULL;
+    s->search_tree->top->level = 0;
     s->clause_num = 0;
+    s->cluase_sat_num = 0;
     s->sat = Unknown;
     s->time = 0;
     s->decision_times = 0;
     s->rule_times = 0;
+    s->search_tree->height = 0;
+    s->search_tree->top = NULL;
     return s;
 }
 
@@ -147,10 +145,9 @@ Clause* creat_clause_set()
 
 void add_clause(Solver solver)
 {
-    Clause c = (Clause)malloc(sizeof(Clause));
+    Clause c = (Clause)malloc(sizeof(struct clause_));
     c->l_head = NULL;
-    c->changing_level_old = Unknown;
-    c->changing_level_now = Unknown;
+    c->cause_order = Unknown;
     c->length = 0;
     c->status = Unknown;
     solver->clause_set[solver->clause_num] = c;
@@ -163,7 +160,6 @@ void add_literal(Clause c, int var_order, Sign sign)
     c->l_head = malloc(sizeof(struct literal_));
     c->l_head->order = var_order;
     c->l_head->sign = sign;
-    c->l_head->status = Unknown;
     c->l_head->next = p;
     c->length += 1;
 }
@@ -176,6 +172,7 @@ Clause_ref_set* creat_clause_ref_set(int var_num)
         cr_sets[i] = (Clause_ref_set)malloc(sizeof(struct clause_ref_set_));
         cr_sets[i]->positive_score = cr_sets[i]->negative_score = 0;
         cr_sets[i]->status = Unknown;
+        cr_sets[i]->level = 0;
         cr_sets[i]->clause_ref_head = NULL;
     }
     return cr_sets;
@@ -186,7 +183,6 @@ void add_clause_ref(Clause_ref_set cr_set, int clause_order, Sign sign)
     Clause_ref p = cr_set->clause_ref_head;
     cr_set->clause_ref_head = (Clause_ref)malloc(sizeof(struct clause_ref_));
     cr_set->clause_ref_head->order = clause_order;
-    cr_set->clause_ref_head->status = Unknown;
     cr_set->clause_ref_head->sign = sign;
     cr_set->clause_ref_head->next = p;
     if(sign == Positive)
@@ -220,7 +216,7 @@ void cnf_display(Solver solver)
     for(int i = 0; i < solver->variable_num; i++)
     {
         cr = solver->ref_sets[i]->clause_ref_head;
-        printf("variable %d in frequency of %d/%d occurs in these clause : { ",
+        printf("variable %d in score of %f/%f occurs in these clause : { ",
             i + 1, solver->ref_sets[i]->positive_score, solver->ref_sets[i]->negative_score);
         while(cr != NULL)
         {
@@ -237,14 +233,14 @@ void cnf_display(Solver solver)
 // 通过带命令行参数的程序来验证cnf公式的正确性
 int main(int argc, char const *argv[])
 {
-    // if(argc != 2)
-    // {
-    //     printf("ERROR: need two arguments!!!");
-    //     exit(0);
-    // }
+    if(argc != 2)
+    {
+        printf("ERROR: need two arguments!!!");
+        exit(0);
+    }
 
-    // Solver s = input_parse(argv[1]);
-    Solver s = input_parse("D:\\WorkSpace\\SAT\\example\\M\\mysample_sat.cnf");
+    Solver s = input_parse(argv[1]);
+    // Solver s = input_parse("D:\\WorkSpace\\SAT\\example\\M\\mysample_sat.cnf");
     cnf_display(s);
     return 0;
 }
