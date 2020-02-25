@@ -52,6 +52,8 @@ Solver input_parse(const char* path)
                         {
                             solver->variable_num = solver->variable_num * 10 + (buffer[i] - '0');
                         }
+                        solver->clause_queue = creat_queue(MAX_CAP / 10);
+                        solver->cause_queue = creat_queue(solver->variable_num * 3);
                         break;
                     }
                 }
@@ -109,6 +111,8 @@ Solver input_parse(const char* path)
                     }
                     i++;
                 }
+                if(solver->clause_set[line]->length == 1)
+                    Q_put(solver->clause_queue, line);
                 line++;
                 break;
             }
@@ -133,7 +137,6 @@ Solver creat_solver()
     s->decision_times = 0;
     s->rule_times = 0;
     s->search_tree->height = 0;
-    s->search_tree->top = NULL;
     return s;
 }
 

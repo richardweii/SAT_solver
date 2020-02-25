@@ -1,7 +1,7 @@
 /* 此头文件定义了项目用到的数据结构和声明了部分通用函数接口 */
 #ifndef _SAT_H_INC
 #define _SAT_H_INC
-#define MAX_CAP 100000
+#define MAX_CAP 200000
 #define True 1
 #define False 0
 #define Unknown -1
@@ -107,13 +107,12 @@ typedef struct solver
     int rule_times;    // dpll规则成功运用的次数，作为搜索指标参考
     Queue clause_queue; // 长度为1的子句装入队列中
     Queue cause_queue;  // 冲突节点队列
-    int conflict_clause_order; // 发生冲突导致不满足的子句
     Clause* clause_set;     // 指向子句指针区域的指针, 构建 子句-文字 链表数组
     Clause_ref_set* ref_sets;   // 指向子句引用区域的指针, 构建 变量-子句引用 链表数组
     Tree search_tree; // 搜索链用来得到变量的赋值情况
 }* Solver;
 /*********************** 函数接口 *************************/
-// TODO:实现下列函数
+
 Queue creat_queue(int cap); // 创建队列     
 int Q_out(Queue q); // 出队
 void Q_put(Queue q, int order); // 放入队列
@@ -139,8 +138,8 @@ void tree_grows(Solver solver, Variable v, Status is_decision);  // 搜索树的
 Status simplify(Solver solver); // 运用单子句规则和纯文字规则化简
 Status single_rule(Solver solver);  // 单子句规则
 Status pure_rule(Solver solver);    // 纯文字规则
-int backtrack(Solver solver);   // 回溯
-Status conflict_clause_learning(Solver solver); // 冲突子句学习，返回学习是否成功
+void backtrack(Solver solver, int level);   // 回溯
+int conflict_clause_learning(Solver solver); // 冲突子句学习，返回回溯的层数，返回-1则代表回溯失败
 Variable var_decision(Solver solver);   // 变量分支决策
 Status check_literal(Sign sign, Status v_status); // 检查一个被赋值的文字是否满足
 void decay(Solver solver);  // 计分衰减
