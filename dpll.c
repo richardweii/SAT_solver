@@ -6,6 +6,10 @@
 #include<time.h>
 #include"sat.h"
 #define INTERVAL 10
+#define ORIGINAL_SERIES 100
+#define RATIO 1.5
+// #define RESTART
+
 // #define RESTART_INTERVAL 60
 
 void show_in_time(Solver s, int timer)
@@ -26,8 +30,9 @@ Solver DPLL(Solver solver)
     start_t = clock();  // 算法开始
     Variable center_var; // 中间变量，记录每一步的中心变元
     Status sat = Unknown;    // 记录当前cnf公式的满足状态
-    #ifdef RESTART_INTERVAL
-    int time_restart = clock();
+    #ifdef RESTART
+    int original_num = solver->clause_num;
+    int restart_seq = ORIGINAL_SERIES;
     #endif
     int level;
     if((sat = simplify(solver)) != Unknown)
@@ -69,14 +74,14 @@ Solver DPLL(Solver solver)
             }
             // 隐藏刚学习的子句，以免回溯时扰乱
             solver->clause_set[solver->clause_num - 1]->status = True;
-            #ifdef RESTART_INTERVAL
-            if(solver->search_tree->height < 2 * solver->search_tree->top->level && 
-                    (clock() - time_restart) / CLOCKS_PER_SEC > RESTART_INTERVAL)
+            #ifdef RESTART
+            if(solver->clause_num - original_num >= restart_seq )
             {
+                original_num = solver->clause_num;
+                restart_seq *= RATIO;
                 backtrack(solver, 0);
                 sat = Unknown;
-                time_restart = clock();
-                printf("Restart success\n");
+                printf("\nRestart success in time: %f\n",(double)(clock() - start_t) / CLOCKS_PER_SEC);
             }
             else
                 backtrack(solver, level);
@@ -254,6 +259,7 @@ Status pure_rule(Solver solver)
 
 int conflict_clause_learning(Solver solver)
 {
+    decay(solver);
     int level_now = solver->search_tree->top->level;
     int level_back = level_now - 1;
     int sign;
@@ -311,7 +317,6 @@ int conflict_clause_learning(Solver solver)
 
 void backtrack(Solver solver, int level)
 {
-    decay(solver);
     Node p = solver->search_tree->top;
     Clause_ref cr;
     Variable v;
@@ -370,8 +375,8 @@ void decay(Solver solver)
 {
     for(int i = 0; i < solver->variable_num; i++)
     {
-        solver->ref_sets[i]->positive_score /= 1.05;
-        solver->ref_sets[i]->negative_score /= 1.05;
+        solver->ref_sets[i]->positive_score /= DECAY;
+        solver->ref_sets[i]->negative_score /= DECAY;
     }
 }
 

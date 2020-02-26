@@ -53,7 +53,7 @@ Solver input_parse(const char* path)
                             solver->variable_num = solver->variable_num * 10 + (buffer[i] - '0');
                         }
                         solver->clause_queue = creat_queue(MAX_CAP / 10);
-                        solver->cause_queue = creat_queue(solver->variable_num * 3);
+                        solver->cause_queue = creat_queue(solver->variable_num * 10);
                         break;
                     }
                 }
