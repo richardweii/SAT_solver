@@ -174,6 +174,7 @@ Clause_ref_set* creat_clause_ref_set(int var_num)
     {
         cr_sets[i] = (Clause_ref_set)malloc(sizeof(struct clause_ref_set_));
         cr_sets[i]->positive_score = cr_sets[i]->negative_score = 0;
+        cr_sets[i]->is_decision_var = Unknown;
         cr_sets[i]->status = Unknown;
         cr_sets[i]->level = 0;
         cr_sets[i]->clause_ref_head = NULL;

@@ -8,7 +8,7 @@
 #define INTERVAL 10
 #define ORIGINAL_SERIES 100
 #define RATIO 1.5
-// #define RESTART
+#define RESTART
 
 // #define RESTART_INTERVAL 60
 
@@ -33,6 +33,7 @@ Solver DPLL(Solver solver)
     #ifdef RESTART
     int original_num = solver->clause_num;
     int restart_seq = ORIGINAL_SERIES;
+    int i = 1;
     #endif
     int level;
     if((sat = simplify(solver)) != Unknown)
@@ -72,24 +73,21 @@ Solver DPLL(Solver solver)
                 solver->sat = sat;
                 break;
             }
-            // 隐藏刚学习的子句，以免回溯时扰乱
-            solver->clause_set[solver->clause_num - 1]->status = True;
             #ifdef RESTART
             if(solver->clause_num - original_num >= restart_seq )
             {
                 original_num = solver->clause_num;
-                restart_seq *= RATIO;
-                backtrack(solver, 0);
+                if(restart_seq < 3000)
+                    restart_seq *= RATIO;
+                backtrack(solver, 0, True);
                 sat = Unknown;
-                printf("\nRestart success in time: %f\n",(double)(clock() - start_t) / CLOCKS_PER_SEC);
+                printf("\nRestart %d success in time: %f\n", i++ ,(double)(clock() - start_t) / CLOCKS_PER_SEC);
             }
             else
-                backtrack(solver, level);
+                backtrack(solver, level, False);
             #else
-            backtrack(solver, level);
+            backtrack(solver, level, False);
             #endif
-
-            solver->clause_set[solver->clause_num - 1]->status = Unknown;
             sat = simplify(solver);
         }
     }
@@ -153,6 +151,7 @@ Status update(Solver solver, Variable v)
 {
     Status result = Unknown;
     solver->ref_sets[v.order]->status = v.status;
+    solver->ref_sets[v.order]->is_decision_var = solver->search_tree->top->is_decision_node;
     solver->ref_sets[v.order]->level = solver->search_tree->top->level;
     Clause_ref cr = solver->ref_sets[v.order]->clause_ref_head;
     for (; cr != NULL; cr = cr->next)
@@ -260,22 +259,12 @@ Status pure_rule(Solver solver)
 int conflict_clause_learning(Solver solver)
 {
     decay(solver);
-    int level_now = solver->search_tree->top->level;
-    int level_back = level_now - 1;
+    int level = solver->search_tree->top->level;
+    int level_back = 0;
     int sign;
     Status* mark = (Status*)calloc(solver->variable_num, sizeof(Status));
     add_clause(solver);
 
-    // 先找到决策结点
-    Node p = solver->search_tree->top;
-    for(;!p->is_decision_node && p != NULL; p = p->ancestor);
-    if(p == NULL)
-        return -1;   // 学习失败，找不到决策结点，也意味着cnf公式不满足
-    sign = p->var.status == True ? Negative : Positive;
-    add_literal(solver->clause_set[solver->clause_num - 1], p->var.order, sign);
-    add_clause_ref(solver->ref_sets[p->var.order], solver->clause_num - 1, sign);
-    mark[p->var.order] = True;
-    
     // 再将直接冲突原因节点加入队列中
     Q_put(solver->cause_queue, solver->search_tree->top->var.order);
     // 从已有的原因节点开始BFS搜索原因节点和冲突因子
@@ -291,31 +280,37 @@ int conflict_clause_learning(Solver solver)
         cr = solver->ref_sets[v_order]->clause_ref_head;
          for(; cr != NULL; cr = cr->next)
         {
-            if(solver->clause_set[cr->order]->cause_order != v_order || solver->clause_set[cr->order]->length != 0)
+            if(solver->clause_set[cr->order]->cause_order != v_order || solver->clause_set[cr->order]->length != 0) 
                 continue;
             L = solver->clause_set[cr->order]->l_head;
             for(; L != NULL; L = L->next)
             {
-                if(solver->ref_sets[L->order]->level < level_now && mark[L->order] == False && solver->ref_sets[L->order]->level != 0)
+                if(mark[L->order] == True || solver->ref_sets[L->order]->level == 0)
+                    continue;
+                if(solver->ref_sets[L->order]->level < level || solver->ref_sets[L->order]->is_decision_var == True)
                 {
-                    if(solver->ref_sets[L->order]->level <= level_back)
-                        level_back = solver->ref_sets[L->order]->level - 1;
+                    if(solver->ref_sets[L->order]->level > level_back)
+                        level_back = solver->ref_sets[L->order]->level;
                     // 添加其他层的冲突因子文字
                     mark[L->order] = True;  // 表示该变元已经检查过了
                     sign = solver->ref_sets[L->order]->status == True ? Negative : Positive;
                     add_literal(solver->clause_set[solver->clause_num - 1], L->order, sign);
                     add_clause_ref(solver->ref_sets[L->order], solver->clause_num - 1, sign);
                 }
-                else if(mark[L->order] == False)
+                else
+                {
                     Q_put(solver->cause_queue, L->order);   // 将同层原因加入队列中搜索
+                }
             }
         }
     }
+    solver->clause_set[solver->clause_num - 1]->length = 0;
+    solver->clause_set[solver->clause_num - 1]->cause_order = Unknown;
     free(mark);
-    return level_back;    // 成功学习
+    return level_back - 1;    // 成功学习
 }
 
-void backtrack(Solver solver, int level)
+void backtrack(Solver solver, int level, Status is_restart)
 {
     Node p = solver->search_tree->top;
     Clause_ref cr;
@@ -341,6 +336,8 @@ void backtrack(Solver solver, int level)
         solver->search_tree->top = p;
         solver->search_tree->height -= 1;
     }
+    if(solver->clause_set[solver->clause_num - 1]->length == 1 && is_restart == False)
+        Q_put(solver->clause_queue, solver->clause_num- 1);
 }
 
 Variable var_decision(Solver solver)
@@ -375,8 +372,8 @@ void decay(Solver solver)
 {
     for(int i = 0; i < solver->variable_num; i++)
     {
-        solver->ref_sets[i]->positive_score /= DECAY;
-        solver->ref_sets[i]->negative_score /= DECAY;
+        solver->ref_sets[i]->positive_score *= DECAY;
+        solver->ref_sets[i]->negative_score *= DECAY;
     }
 }
 
@@ -405,13 +402,14 @@ int main(int argc, char const *argv[])
     for(int i = 1; i < argc; i++)
     {
         char const* path = argv[i];
-        // char* path = "D:\\WorkSpace\\SAT\\example\\L\\eh-vmpc_25.renamed-as.sat05-1913-625.cnf";
+        // char* path = "D:\\WorkSpace\\SAT\\example\\sat-20.cnf";
         Solver solver = input_parse(path);
         // cnf_display(solver);
         solver = DPLL(solver);
-        printf("Finish:  %s\n", argv[i]);
+        // printf("Finish:  %s\n", argv[i]);
         fprintf(fp, "SAMPLE:  %s\n", argv[i]);
         fprintf(fp, "Result:%d time:%f  var decision times:%d rule times:%d\n\n", solver->sat, solver->time, solver->decision_times, solver->rule_times);
+        printf("Result:%d time:%f  var decision times:%d rule times:%d\n\n", solver->sat, solver->time, solver->decision_times, solver->rule_times);
         if(solver->sat == True)
         {
             // show_tree(solver->search_tree->top, solver->search_tree->height);

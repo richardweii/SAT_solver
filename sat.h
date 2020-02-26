@@ -7,7 +7,7 @@
 #define Unknown -1
 #define Positive 1
 #define Negative 0
-#define DECAY 1.05
+#define DECAY 0.9
 /*********************** 数据存储结构 ************************/
 // 变量的序号和子句的序号都从0开始计算
 
@@ -76,6 +76,7 @@ typedef struct clause_ref_set_
     double negative_score;  // 负文字的score
     Status status;  // 变元的赋值状态
     int level;  // 变量所被赋值的决策层
+    Status is_decision_var; // 是否是决策变量
     Clause_ref clause_ref_head; // 子句引用链表
 }* Clause_ref_set;
 
@@ -138,7 +139,7 @@ void tree_grows(Solver solver, Variable v, Status is_decision);  // 搜索树的
 Status simplify(Solver solver); // 运用单子句规则和纯文字规则化简
 Status single_rule(Solver solver);  // 单子句规则
 Status pure_rule(Solver solver);    // 纯文字规则
-void backtrack(Solver solver, int level);   // 回溯
+void backtrack(Solver solver, int level, Status is_restart);   // 回溯
 int conflict_clause_learning(Solver solver); // 冲突子句学习，返回回溯的层数，返回-1则代表回溯失败
 Variable var_decision(Solver solver);   // 变量分支决策
 Status check_literal(Sign sign, Status v_status); // 检查一个被赋值的文字是否满足
