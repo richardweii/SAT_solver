@@ -111,6 +111,7 @@ Solver input_parse(const char* path)
                     }
                     i++;
                 }
+                count_score(solver, solver->clause_set[solver->clause_num - 1], 0);
                 if(solver->clause_set[line]->length == 1)
                     Q_put(solver->clause_queue, line);
                 line++;
@@ -189,10 +190,28 @@ void add_clause_ref(Clause_ref_set cr_set, int clause_order, Sign sign)
     cr_set->clause_ref_head->order = clause_order;
     cr_set->clause_ref_head->sign = sign;
     cr_set->clause_ref_head->next = p;
-    if(sign == Positive)
-        cr_set->positive_score += 1;
-    else
-        cr_set->negative_score += 1;
+}
+
+void count_score(Solver solver, Clause c, int mode)
+{
+    Literal l = c->l_head;
+    for(;l != NULL; l = l->next)
+    {
+        if(mode == 1)
+        {
+            if(l->sign == Positive)
+                solver->ref_sets[l->order]->positive_score += (1.0 / c->length) * 20;
+            else
+                solver->ref_sets[l->order]->negative_score += (1.0 / c->length) * 20;
+        }
+        else
+        {
+            if(l->sign == Positive)
+                solver->ref_sets[l->order]->positive_score += 1.0;
+            else
+                solver->ref_sets[l->order]->negative_score += 1.0;
+        }
+    }
 }
 
 void cnf_display(Solver solver)

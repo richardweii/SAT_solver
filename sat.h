@@ -47,7 +47,6 @@ typedef struct clause_
     Status status;   // 子句状态, 1, 0, -1 分别表示 已, 不, 待 满足
     int cause_order; // 导致子句状态改变的变元
     int length; // 子句长度
-    // Change_list change_list;  // 子句的长度变化链，用于回溯恢复 
     Literal l_head; // 子句的头文字指针
 }* Clause;
 /* 待处理队列 */
@@ -128,6 +127,7 @@ void add_clause(Solver s); // 添加空子句
 void add_literal(Clause c, int var_order, Sign sign);   // 向子句中添加文字
 Clause_ref_set* creat_clause_ref_set(int var_num); // 创建空的子句引用集
 void add_clause_ref(Clause_ref_set cr_set, int clause_order, Sign sign);  // 添加子句引用
+void count_score(Solver solver, Clause c, int mode);  // 对指定子句中的文字进行计分更新
 
 void cnf_display(Solver s);
 
@@ -145,5 +145,6 @@ Variable var_decision(Solver solver);   // 变量分支决策
 Status check_literal(Sign sign, Status v_status); // 检查一个被赋值的文字是否满足
 void decay(Solver solver);  // 计分衰减
 
-
+// TODO:增加删除子句功能，删除长度大于十的子句
+// 在solver中加一个指标代表下一个添加新子句的位置
 #endif
