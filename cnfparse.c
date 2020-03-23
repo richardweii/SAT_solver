@@ -1,6 +1,5 @@
 /* 输入解析模块 */
 #define _CNFPARSE_
-#define MAX_BUFFER 1000
 #include"sat.h"
 #include<stdio.h>
 #include<stdlib.h>
@@ -11,13 +10,14 @@ Solver input_parse(const char* path)
     char* buffer = (char*)malloc(sizeof(char) * MAX_BUFFER);
     if((file = fopen(path, "r")) == NULL)
     {
-        printf("ERROR: Open failed!!!\n");
+        printf("EXCEPTION: Open failed!!!\n");
         return NULL;
     }
     int i;  // 循环控制
     int num;    // 字符串转化为数字时的中介变量
     int sign;   // 表示文字的正负:0,1 分别表示正, 负
     int line = -1;   // 记录子句的行数
+    int clause_num = 0;
     Solver solver = creat_solver();
     while(True)
     {
@@ -53,7 +53,13 @@ Solver input_parse(const char* path)
                             solver->variable_num = solver->variable_num * 10 + (buffer[i] - '0');
                         }
                         solver->clause_queue = creat_queue(MAX_CAP / 10);
-                        solver->cause_queue = creat_queue(solver->variable_num * 10);
+                        solver->cause_queue = creat_queue(solver->variable_num);
+                        while(buffer[i] > '9' || buffer[i] < '0') i++;
+                        while (buffer[i] <='9' && buffer[i] >= '0')
+                        {
+                            clause_num = clause_num * 10 + (buffer[i] - '0');
+                            i++;
+                        }
                         break;
                     }
                 }
@@ -63,8 +69,8 @@ Solver input_parse(const char* path)
                     line = 0;
                 else
                 {
-                    printf("ERROR: cnf information initialization duplicates");
-                    exit(0);
+                    printf("EXCEPTION: cnf information initialization duplicates");
+                    exit(1);
                 }
                 break;
             }
@@ -74,10 +80,10 @@ Solver input_parse(const char* path)
             {
                 if(line == -1)
                 {
-                    printf("ERROR: cnf information haven't been initialize");
-                    exit(0);
+                    printf("EXCEPTION: cnf information haven't been initialize");
+                    exit(1);
                 }
-                if(buffer[0] != '-' && (buffer[0] < '0' || buffer[0] > '9'))
+                if(line >= clause_num)
                     break;
                 i = 0;
                 add_clause(solver);
@@ -132,6 +138,7 @@ Solver creat_solver()
     s->search_tree->top->ancestor = NULL;
     s->search_tree->top->level = 0;
     s->clause_num = 0;
+    s->next_place = 0;
     s->cluase_sat_num = 0;
     s->sat = Unknown;
     s->time = 0;
@@ -154,8 +161,9 @@ void add_clause(Solver solver)
     c->cause_order = Unknown;
     c->length = 0;
     c->status = Unknown;
-    solver->clause_set[solver->clause_num] = c;
+    solver->clause_set[solver->next_place] = c;
     solver->clause_num += 1;
+    solver->next_place += 1;
 }
 
 void add_literal(Clause c, int var_order, Sign sign)
@@ -258,8 +266,8 @@ int main(int argc, char const *argv[])
 {
     if(argc != 2)
     {
-        printf("ERROR: need two arguments!!!");
-        exit(0);
+        printf("EXCEPTION: need two arguments!!!");
+        exit(1);
     }
 
     Solver s = input_parse(argv[1]);

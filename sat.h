@@ -1,7 +1,8 @@
 /* 此头文件定义了项目用到的数据结构和声明了部分通用函数接口 */
 #ifndef _SAT_H_INC
 #define _SAT_H_INC
-#define MAX_CAP 200000
+#define MAX_CAP 500000
+#define MAX_BUFFER 1000
 #define True 1
 #define False 0
 #define Unknown -1
@@ -11,6 +12,7 @@
 /*********************** 数据存储结构 ************************/
 // 变量的序号和子句的序号都从0开始计算
 
+/*************** cnf 公式以及 dpll ****************/
  /* 状态 */
 typedef int Status;
 
@@ -49,6 +51,7 @@ typedef struct clause_
     int length; // 子句长度
     Literal l_head; // 子句的头文字指针
 }* Clause;
+
 /* 待处理队列 */
 typedef struct queue_
 {
@@ -98,19 +101,38 @@ typedef struct tree_
 /* SAT求解器 */
 typedef struct solver
 {
-    Status sat;    // 可满足性，1、0分别表示满足和不满足
-    int variable_num;   // 子句集中所含的变元数量
-    int cluase_sat_num; // 子句集中已满足的子句的数量
-    int clause_num;     // 子句集中所含子句的数量 
-    int decision_times;  // 变量分支决策的次数
-    double time;   // 算法运行的时间
-    int rule_times;    // dpll规则成功运用的次数，作为搜索指标参考
-    Queue clause_queue; // 长度为1的子句装入队列中
-    Queue cause_queue;  // 冲突节点队列
-    Clause* clause_set;     // 指向子句指针区域的指针, 构建 子句-文字 链表数组
+    Status sat;                 // 可满足性，1、0分别表示满足和不满足
+    int variable_num;           // 子句集中所含的变元数量
+    int cluase_sat_num;         // 子句集中已满足的子句的数量
+    int clause_num;             // 子句集中所含子句的数量 
+    int original_clauses;       // 原生子句的数量
+    int next_place;             // 下一个安放学习子句的位置索引
+    int decision_times;         // 变量分支决策的次数
+    double time;                // 算法运行的时间
+    int rule_times;             // dpll规则成功运用的次数，作为搜索指标参考
+    Queue clause_queue;         // 长度为1的子句装入队列中
+    Queue cause_queue;          // 冲突节点队列
+    Clause* clause_set;         // 指向子句指针区域的指针, 构建 子句-文字 链表数组
     Clause_ref_set* ref_sets;   // 指向子句引用区域的指针, 构建 变量-子句引用 链表数组
-    Tree search_tree; // 搜索链用来得到变量的赋值情况
+    Tree search_tree;           // 搜索链用来得到变量的赋值情况
 }* Solver;
+
+/*************** 数独 *****************/
+
+typedef struct _sudoku
+{
+    int size;       // 数独的棋盘规模
+    int variable;   // 最终的变元个数
+    int clause;     // 最终的子句个数
+    int var_next;  // 下一个顺序附加变元的序号
+    int cla_next;  // 下一个顺序子句的序号
+    int* prefill;   // 预填的变量
+    int pre_num;    // 预填的变量的数目
+    int** contents; // 以数组的形式构建子句集
+}* Sudoku;
+
+
+
 /*********************** 函数接口 *************************/
 
 Queue creat_queue(int cap); // 创建队列     
@@ -144,7 +166,15 @@ int conflict_clause_learning(Solver solver); // 冲突子句学习，返回回�
 Variable var_decision(Solver solver);   // 变量分支决策
 Status check_literal(Sign sign, Status v_status); // 检查一个被赋值的文字是否满足
 void decay(Solver solver);  // 计分衰减
+void clause_delete(Solver solver, int threshold);   // 删除长度大于threshold且已满足的学习子句
 
-// TODO:增加删除子句功能，删除长度大于十的子句
-// 在solver中加一个指标代表下一个添加新子句的位置
+Sudoku sudoku_parse(char* path);    // 从文件读入数独基本信息
+int get_clause_num(int size);       // 指定大小的数独格局需要的约束子句个数
+int get_variable_num(int size);     // 指定大小的数独格局需要的变元个数
+int encode_var(int row, int col, int size); // 从指定的行列转换为棋盘变元序号
+void sudoku_rule1(Sudoku sudoku);   // 数独约束1
+void sudoku_rule2(Sudoku sudoku);   // 数独约束2
+void sudoku_rule3(Sudoku sudoku);   // 数独约束3
+Solver sudoku_to_cnf(Sudoku sudolu); // 将已经化好的sudoku转化和输出为cnf公式
+
 #endif

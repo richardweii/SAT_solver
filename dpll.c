@@ -9,7 +9,8 @@
 #define ORIGINAL_SERIES 100
 #define RATIO 1.5
 // #define DEBUG
-#define RESTART
+// #define RESTART
+#define SHRINK
 
 // #define RESTART_INTERVAL 60
 
@@ -28,13 +29,17 @@ Solver DPLL(Solver solver)
 {
     int timer_show = INTERVAL;
     int time_now = 0;
-
+    #ifdef DEBUG
     int breakpoint = 0;
-
+    #endif
     clock_t start_t, finish_t;  // 时刻点
     start_t = clock();  // 算法开始
     Variable center_var; // 中间变量，记录每一步的中心变元
     Status sat = Unknown;    // 记录当前cnf公式的满足状态
+    solver->original_clauses = solver->clause_num;
+    #ifdef SHRINK
+    int gap = solver->original_clauses;
+    #endif
     #ifdef RESTART
     int original_num = solver->clause_num;
     int restart_seq = ORIGINAL_SERIES;
@@ -73,16 +78,27 @@ Solver DPLL(Solver solver)
                     break;
                 }
             }
+            #ifdef DEBUG
             if(time_now > INTERVAL)
             {
                 breakpoint += 1;
             }
+            #endif
             if((level = conflict_clause_learning(solver)) < 0)   // 回溯到第几层)
             {
             // 出口二：无法向上回溯
                 solver->sat = sat;
                 break;
             }
+            #ifdef SHRINK
+            if(solver->clause_num - solver->original_clauses > gap)
+            {
+                int a = solver->clause_num;
+                gap *= 1.2;
+                clause_delete(solver, 8);
+                printf("Delete %d clause\n", a - solver->clause_num);
+            }
+            #endif
             #ifdef RESTART
             if(solver->clause_num - original_num >= restart_seq )
             {
@@ -124,8 +140,8 @@ void Q_put(Queue q, int order)
     q->rear = (q->rear + 1) % q->size;
     if(q->front == q->rear)
     {
-        printf("ERROR:queue is full");
-        exit(0);
+        printf("EXCEPTION:queue is full");
+        exit(1);
     }
     q->items[q->rear] = order;
 }
@@ -220,8 +236,8 @@ Status single_rule(Solver solver)
         for(; l != NULL && solver->ref_sets[l->order]->status != Unknown; l = l->next);
         if(l == NULL)
         {
-            printf("ERROR:cannot find that literal in clause %d", order + 1);
-            exit(0);
+            printf("EXCEPTION:cannot find that literal in clause %d", order + 1);
+            exit(1);
         }
         v.order = l->order;
         v.status = (l->sign == Positive) ? True : False;
@@ -290,8 +306,8 @@ int conflict_clause_learning(Solver solver)
         if(Q_empty(solver->cause_queue) && v_order != conflict_var)
         {
             sign = solver->ref_sets[v_order]->status == True ? Negative : Positive;
-            add_literal(solver->clause_set[solver->clause_num - 1], v_order, sign);
-            add_clause_ref(solver->ref_sets[v_order], solver->clause_num - 1, sign);
+            add_literal(solver->clause_set[solver->next_place - 1], v_order, sign);
+            add_clause_ref(solver->ref_sets[v_order], solver->next_place - 1, sign);
             result = True;
             break;
         }
@@ -313,8 +329,8 @@ int conflict_clause_learning(Solver solver)
                     // 添加其他层的冲突因子文字
                     mark[L->order] = True;  // 表示该变元已经检查过了
                     sign = solver->ref_sets[L->order]->status == True ? Negative : Positive;
-                    add_literal(solver->clause_set[solver->clause_num - 1], L->order, sign);
-                    add_clause_ref(solver->ref_sets[L->order], solver->clause_num - 1, sign);
+                    add_literal(solver->clause_set[solver->next_place - 1], L->order, sign);
+                    add_clause_ref(solver->ref_sets[L->order], solver->next_place - 1, sign);
                 }
                 else if(!mark[L->order])
                 {
@@ -324,9 +340,9 @@ int conflict_clause_learning(Solver solver)
             }
         }
     }
-    count_score(solver, solver->clause_set[solver->clause_num - 1], 0);
-    solver->clause_set[solver->clause_num - 1]->length = 0;
-    solver->clause_set[solver->clause_num - 1]->cause_order = Unknown;
+    count_score(solver, solver->clause_set[solver->next_place - 1], 0);
+    solver->clause_set[solver->next_place - 1]->length = 0;
+    solver->clause_set[solver->next_place - 1]->cause_order = Unknown;
     free(mark);
     if(result)
         return level_back;    // 成功学习
@@ -361,8 +377,8 @@ void backtrack(Solver solver, int level, Status is_restart)
         solver->search_tree->top = p;
         solver->search_tree->height -= 1;
     }
-    if(solver->clause_set[solver->clause_num - 1]->length == 1 && is_restart == False)
-        Q_put(solver->clause_queue, solver->clause_num- 1);
+    if(solver->clause_set[solver->next_place - 1]->length == 1 && is_restart == False)
+        Q_put(solver->clause_queue, solver->next_place - 1);
 }
 
 Variable var_decision(Solver solver)
@@ -393,6 +409,68 @@ Variable var_decision(Solver solver)
     return v;
 }
 
+/****************************************
+ * 参数：
+ *  solver: 求解器
+ *  threshold: 长度阈
+ * 功能:
+ *  遍历学习子句集,将当前长度大于threshold的子句删除,同时恢复solver的相关信息
+ ****************************************/
+void clause_delete(Solver solver, int threshold)
+{
+    int i;
+    Literal l, p;
+    for(i = solver->original_clauses;i < solver->next_place; i++)
+    {
+        if(solver->clause_set[i] == NULL || solver->clause_set[i]->length < threshold || solver->clause_set[i]->status != True)
+            continue;
+        solver->clause_num --;
+        solver->cluase_sat_num --;
+        l = solver->clause_set[i]->l_head;
+        while(l != NULL)
+        {
+            p = l->next;
+            free(l);
+            l = p;
+        }
+        free(solver->clause_set[i]);
+        solver->clause_set[i] = NULL;
+    }
+
+    Clause_ref cr, pr;
+    for(i = 0; i < solver->variable_num; i++)
+    {
+        cr = solver->ref_sets[i]->clause_ref_head;
+        while(solver->clause_set[cr->order] == NULL)
+        {
+            pr = cr->next;
+            // EXCEPTION
+            if(pr == NULL)
+            {
+                printf("EXCEPTION: A not used variable occur!!!\n");
+                exit(1);
+            }
+            free(cr);
+            solver->ref_sets[i]->clause_ref_head = pr;
+            cr = pr;
+        }
+        pr = cr;
+        while(pr != NULL)
+        {
+            cr = pr->next;
+            if(cr != NULL && solver->clause_set[cr->order] == NULL)
+            {
+                pr->next = cr->next;
+                free(cr);
+            }
+            else
+            {
+                pr = cr;
+            }
+        }
+    }
+}
+
 void decay(Solver solver)
 {
     for(int i = 0; i < solver->variable_num; i++)
@@ -420,8 +498,8 @@ int main(int argc, char const *argv[])
 {
     if(argc < 2)
     {
-        printf("ERROR:need at least two arguments!!");
-        exit(0);
+        printf("EXCEPTION:need at least two arguments!!");
+        exit(1);
     }
     char* res_path = "D:\\WorkSpace\\SAT\\result.res";
     FILE* fp = fopen(res_path, "a+");
@@ -452,10 +530,11 @@ int main(int argc, char const *argv[])
 #else
 int main(int argc, char const *argv[])
 {
-    char* path = "D:\\WorkSpace\\SAT\\example\\M\\m-mod2c-rand3bip-sat-220-3.shuffled-as.sat05-2490-311.cnf";
+    char* path = "D:\\WorkSpace\\SAT\\example\\sat-20.cnf";
+    // char* path = "D:\\WorkSpace\\SAT\\example\\UF225.960.100\\uf200-03.cnf";
     // char* path = "D:\\WorkSpace\\SAT\\example\\M\\m-mod2c-rand3bip-sat-220-3.shuffled-as.sat05-2490-311.cnf";
     Solver solver = input_parse(path);
-    // cnf_display(solver);
+    cnf_display(solver);
     solver = DPLL(solver);
     if(solver->sat == True)
     {
