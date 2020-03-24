@@ -1,6 +1,6 @@
 /* 此头文件定义了项目用到的数据结构和声明了部分通用函数接口 */
-#ifndef _SAT_H_INC
-#define _SAT_H_INC
+#ifndef _SAT_H_INC_
+#define _SAT_H_INC_
 #define MAX_CAP 500000
 #define MAX_BUFFER 1000
 #define True 1
@@ -119,6 +119,7 @@ typedef struct solver
 
 /*************** 数独 *****************/
 
+/* 数独容器 */
 typedef struct _sudoku
 {
     int size;       // 数独的棋盘规模
@@ -129,33 +130,45 @@ typedef struct _sudoku
     int* prefill;   // 预填的变量
     int pre_num;    // 预填的变量的数目
     int** contents; // 以数组的形式构建子句集
+    int* solution; // 数独的解，按照前size * size个变量的顺序存储
 }* Sudoku;
 
-
+/* 组合 */
+typedef struct _combination
+{
+    int size;   // 元素个数
+    int choose; // 被选个数
+    int num;    // 组合数
+    int** seq;  // 组合数序列集
+}* Comb;
 
 /*********************** 函数接口 *************************/
 
+
+
+/******* 通用工具 *******/
 Queue creat_queue(int cap); // 创建队列     
 int Q_out(Queue q); // 出队
 void Q_put(Queue q, int order); // 放入队列
 void Q_clear(Queue q);  // 清空队列
 Status Q_empty(Queue q); // 是否为空，为空返回True否则False
+Comb comb(int size, int m);        // 返回组合序列
+void cbNK(int n,int k,int* d,const int NUM, Comb c);   // 递归的生成组合数
 
+/******* SAT求解器以及cnf *******/
 Solver creat_solver();   // 初始化一个空的solver
 Solver input_parse(const char* path);   // 文件输入和解析
-
 Clause* creat_clause_set();   // 创建空子句集
 void add_clause(Solver s); // 添加空子句
 void add_literal(Clause c, int var_order, Sign sign);   // 向子句中添加文字
 Clause_ref_set* creat_clause_ref_set(int var_num); // 创建空的子句引用集
 void add_clause_ref(Clause_ref_set cr_set, int clause_order, Sign sign);  // 添加子句引用
 void count_score(Solver solver, Clause c, int mode);  // 对指定子句中的文字进行计分更新
+int res_save(const char* path, Solver solver);  // 结果保存
 
-void cnf_display(Solver s);
 
-int res_save(const char* path, Solver solver);
-
-Solver DPLL(Solver solver); // dpll入口
+/********  DPLL算法  ********/
+void DPLL(Solver solver); // dpll入口
 Status update(Solver solver, Variable v);   // 变量赋值对cnf公式的更新
 void tree_grows(Solver solver, Variable v, Status is_decision);  // 搜索树的增长
 Status simplify(Solver solver); // 运用单子句规则和纯文字规则化简
@@ -168,13 +181,26 @@ Status check_literal(Sign sign, Status v_status); // 检查一个被赋值的文
 void decay(Solver solver);  // 计分衰减
 void clause_delete(Solver solver, int threshold);   // 删除长度大于threshold且已满足的学习子句
 
+
+/******* 数独 ***********/
+void sudoku_solve(Sudoku s, Status need_save);// 数独求解以及CNF文件输出
 Sudoku sudoku_parse(char* path);    // 从文件读入数独基本信息
-int get_clause_num(int size);       // 指定大小的数独格局需要的约束子句个数
+int get_addition_clause_num(int size);       // 指定大小的数独格局需要的约束子句个数
 int get_variable_num(int size);     // 指定大小的数独格局需要的变元个数
 int encode_var(int row, int col, int size); // 从指定的行列转换为棋盘变元序号
 void sudoku_rule1(Sudoku sudoku);   // 数独约束1
 void sudoku_rule2(Sudoku sudoku);   // 数独约束2
 void sudoku_rule3(Sudoku sudoku);   // 数独约束3
 Solver sudoku_to_cnf(Sudoku sudolu); // 将已经化好的sudoku转化和输出为cnf公式
+void sudoku_solution(Sudoku sudoku, Solver solver);    // 存储数独的解
+
+
+/********** 主控和显示 ***********/
+
+void cnf_display(Solver solver);             // 显示已经建立好的CNF公式
+void sat_solution(Solver solver);            // TODO:显示和输出求解器的结果
+char* sudoku_select(int diffculty, int size);// TODO:通过难度和SIZE选择数独
+Sudoku sudoku_display(char* path);           // 数独显示
+void sudoku_solution_display(Sudoku sudoku); // 数独结果显示
 
 #endif

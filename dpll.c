@@ -11,7 +11,7 @@
 // #define DEBUG
 // #define RESTART
 #define SHRINK
-
+// TODO:重构dpll参数部分，使其能够控制使用某些功能和参数
 // #define RESTART_INTERVAL 60
 
 void show_in_time(Solver s, int timer)
@@ -25,7 +25,7 @@ void show_in_time(Solver s, int timer)
     printf("sat num:         %d\n", s->cluase_sat_num);
 }
 
-Solver DPLL(Solver solver)
+void DPLL(Solver solver)
 {
     int timer_show = INTERVAL;
     int time_now = 0;
@@ -119,7 +119,6 @@ Solver DPLL(Solver solver)
     }
     finish_t = clock();
     solver->time = (double)(finish_t - start_t) / CLOCKS_PER_SEC;
-    return solver;
 }
 
 Queue creat_queue(int cap)
@@ -481,9 +480,10 @@ void decay(Solver solver)
 }
 
 #ifndef _DPLL_INC_
+#ifndef _CNFPARSE_INC_
 #define _CNFPARSE_INC_
 #include"cnfparse.c"
-
+#endif
 void show_tree(Node n, int num)
 {
     if(n->ancestor != NULL)
@@ -501,16 +501,16 @@ int main(int argc, char const *argv[])
         printf("EXCEPTION:need at least two arguments!!");
         exit(1);
     }
-    char* res_path = "D:\\WorkSpace\\SAT\\result.res";
+    char* res_path = "result.res";
     FILE* fp = fopen(res_path, "a+");
     for(int i = 1; i < argc; i++)
     {
         int restart = 0;
         char const* path = argv[i];
-        // char* path = "D:\\WorkSpace\\SAT\\example\\sat-20.cnf";
+        // char* path = "example\\sat-20.cnf";
         Solver solver = input_parse(path);
         // cnf_display(solver);
-        solver = DPLL(solver);
+        DPLL(solver);
         // printf("Finish:  %s\n", argv[i]);
         fprintf(fp, "SAMPLE:  %s\n", argv[i]);
         #ifdef RESTART
@@ -530,9 +530,9 @@ int main(int argc, char const *argv[])
 #else
 int main(int argc, char const *argv[])
 {
-    char* path = "D:\\WorkSpace\\SAT\\example\\sat-20.cnf";
-    // char* path = "D:\\WorkSpace\\SAT\\example\\UF225.960.100\\uf200-03.cnf";
-    // char* path = "D:\\WorkSpace\\SAT\\example\\M\\m-mod2c-rand3bip-sat-220-3.shuffled-as.sat05-2490-311.cnf";
+    char* path = "example\\sat-20.cnf";
+    // char* path = "example\\UF225.960.100\\uf200-03.cnf";
+    // char* path = "example\\M\\m-mod2c-rand3bip-sat-220-3.shuffled-as.sat05-2490-311.cnf";
     Solver solver = input_parse(path);
     cnf_display(solver);
     solver = DPLL(solver);

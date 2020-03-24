@@ -1,5 +1,6 @@
 /* 输入解析模块 */
-#define _CNFPARSE_
+#ifndef _CNFPASE_INC_
+#define _CNFPARSE_INC_
 #include"sat.h"
 #include<stdio.h>
 #include<stdlib.h>
@@ -125,7 +126,6 @@ Solver input_parse(const char* path)
             }
         }
     }
-    printf("Input successfully!!!\n");
     fclose(file);
     return solver;
 }
@@ -220,59 +220,5 @@ void count_score(Solver solver, Clause c, int mode)
                 solver->ref_sets[l->order]->negative_score += 1.0;
         }
     }
-}
-
-void cnf_display(Solver solver)
-{
-    Literal l;  // 中介 文字 指针
-    Clause_ref cr;  // 中介 子句引用 指针
-    // 按子句输出cnf公式
-    printf("display the clause in clause-literal method\n");
-    for(int i = 0; i < solver->clause_num; i++)
-    {
-        l = solver->clause_set[i]->l_head;
-        printf("clause %d in length of %d : { ", i + 1, solver->clause_set[i]->length);
-        while(l != NULL)
-        {
-            if(l->sign)
-                printf("%d ", l->order + 1);
-            else
-                printf("-%d ", l->order + 1);
-            l = l->next;
-        }
-        printf("}\n");
-    }
-    // 按变量输出cnf公式
-    printf("\ndisplay the clause in variable-clause_ref method\n");
-    for(int i = 0; i < solver->variable_num; i++)
-    {
-        cr = solver->ref_sets[i]->clause_ref_head;
-        printf("variable %d in score of %f/%f occurs in these clause : { ",
-            i + 1, solver->ref_sets[i]->positive_score, solver->ref_sets[i]->negative_score);
-        while(cr != NULL)
-        {
-            if(cr->sign)
-                printf("%d ", cr->order + 1);
-            else
-                printf("(-)%d ", cr->order + 1);
-            cr = cr->next;
-        }
-        printf("}\n");
-    }
-}
-#ifndef _CNFPARSE_INC_
-// 通过带命令行参数的程序来验证cnf公式的正确性
-int main(int argc, char const *argv[])
-{
-    if(argc != 2)
-    {
-        printf("EXCEPTION: need two arguments!!!");
-        exit(1);
-    }
-
-    Solver s = input_parse(argv[1]);
-    // Solver s = input_parse("D:\\WorkSpace\\SAT\\example\\M\\mysample_sat.cnf");
-    cnf_display(s);
-    return 0;
 }
 #endif
