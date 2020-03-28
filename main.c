@@ -1,6 +1,6 @@
 /* 程序入口 */
 #define _DPLL_INC_
-#define MODULE_TESTING
+// #define MODULE_TESTING
 #include<stdio.h>
 #include<stdlib.h>
 #include"sat.h"
@@ -10,9 +10,70 @@
 #include"save.c"
 
 #ifndef MODULE_TESTING
-// TODO:主程序入口
 int main()
 {
+    printf("Choose the function:\n");
+    printf(" 1. SAT problem solves.\n");
+    printf(" 2. sudoku gaming\n");
+    printf(" 3. exit\n");
+    printf("Input the number of function:[1 or 2 or 3]: ");
+    int choice;
+    char temp;
+    while (True)
+    {
+        scanf("%d", &choice);
+        scanf("%c", &temp);
+        switch (choice)
+        {
+            case 1:
+            {
+                printf("input the path of cnf file:");
+                char* path = (char*)malloc(sizeof(char) * 80);
+                scanf("%s", path);
+                Solver solver = input_parse(path);
+                DPLL(solver);
+                sat_solution(solver);
+                res_save(path, solver);
+                break;
+            }
+            case 2:
+            {
+                int size;
+                printf("input the size of sudoku:[6 0r 8 or 10 or 12 or 14]:");
+                scanf("%d", &size);
+                char* sudoku_path = sudoku_select(6);
+                Sudoku s = sudoku_display(sudoku_path);
+
+                sudoku_rule1(s);
+                sudoku_rule2(s);
+                sudoku_rule3(s);
+
+                sudoku_solve(s, False);
+                sudoku_solution_display(s);
+                break;
+            }
+            case 3:
+            {
+                break;
+            }
+            default:
+            {
+                printf("Input invalid!!!");
+                printf("  try again:[1 or 2 or 3]:");
+                break;
+            }
+        }
+        if (choice == 1 || choice == 2)
+        {
+            printf("Choose the function:\n");
+            printf(" 1. SAT problem solves.\n");
+            printf(" 2. sudoku gaming\n");
+            printf(" 3. exit\n");
+            printf("Input the number of function:[1 or 2 or 3]: ");
+        }
+        else if(choice == 3)
+            break;
+    }
     return 0;
 }
 #endif
@@ -34,6 +95,7 @@ int main()
     scanf("%s", path);
     Solver solver = input_parse(path);
     DPLL(solver);
+    sat_solution(solver);
     res_save(path, solver);
     return 0;
 }
@@ -43,7 +105,7 @@ int main()
 #undef CNF_PARSE_TESTING
 int main()
 {   
-    char* sudoku_path = "example\\sudoku\\vh14_1.sudoku";
+    char* sudoku_path = sudoku_select(6);
     Sudoku s = sudoku_display(sudoku_path);
 
     sudoku_rule1(s);
@@ -164,4 +226,79 @@ void cnf_display(Solver solver)
     //     }
     //     printf("}\n");
     // }
+}
+
+char* sudoku_select(int size)
+{
+    char* file = (char*)malloc(sizeof(char) * 80);
+    char* path = (char*)calloc(80, sizeof(char));
+    strcat(path, "example\\sudoku\\");
+    int a, b;   // a表示高位，b表示低位
+    int i = 0;      // 表示file字符串下一个位置
+    if(size >= 10)
+    {
+        a = size / 10;
+        b = size % 10;
+        file[i++] = a + '0';
+        file[i++] = b + '0';
+        file[i++] = '_';
+    }
+    else
+    {
+        a = 0;
+        b = size;
+        file[i++] = b + '0';
+        file[i++] = '_';
+    }
+    srand((unsigned)time(NULL));
+    int order = rand();
+    if(size == 6)
+    {
+        order %= 30;
+        order += 1;
+        if(order >= 10)
+        {
+            a = order / 10;
+            b = order % 10;
+            file[i++] = a + '0';
+            file[i++] = b + '0';
+        }
+        else
+        {
+            b = order;
+            file[i++] = b + '0';
+        }
+    }
+    else
+    {
+        order %= 5;
+        order += 1;
+        file[i++] = order + '0';
+    }
+    file[i] = 0;
+    strcat(file, ".sudoku");
+    strcat(path, file);
+    return path;
+}
+
+void sat_solution(Solver solver)
+{
+    printf("Time:%dms", (int)(solver->time * 1000));
+    printf("   SAT:");
+    if(solver->sat == True)
+        printf("True\n");
+    else
+        printf("False\n");
+    printf("SAT solution:\n");
+    if(solver->sat == True)
+    {
+        for(int i = 0; i < solver->variable_num; i++)
+        {
+            printf("Variable %3d :", i + 1);
+            if(solver->ref_sets[i]->status == True)
+                printf("True\n");
+            else
+                printf("False\n");
+        }
+    }
 }

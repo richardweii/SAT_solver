@@ -28,9 +28,9 @@ Sudoku sudoku_parse(char* path)
     int line = -1;   // 记录子句的行数
     while(True)
     {
-        fgets(buffer, MAX_BUFFER, file);
         if(feof(file))
             break;
+        fgets(buffer, MAX_BUFFER, file);
         switch (buffer[0])
         {
             // 行首为‘c’表示为注释

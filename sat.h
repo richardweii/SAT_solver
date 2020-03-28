@@ -9,6 +9,18 @@
 #define Positive 1
 #define Negative 0
 #define DECAY 0.9
+#define INTERVAL 10
+#define ORIGINAL_SERIES 100
+#define RATIO 1.5
+// #define RESTART
+#define SHRINK
+// #define UIP
+#ifdef SHRINK
+#define THRESHOLD 8
+#endif
+#ifdef RESTART
+#define RESTART_INTERVAL 60
+#endif
 /*********************** 数据存储结构 ************************/
 // 变量的序号和子句的序号都从0开始计算
 
@@ -198,8 +210,8 @@ void sudoku_solution(Sudoku sudoku, Solver solver);    // 存储数独的解
 /********** 主控和显示 ***********/
 
 void cnf_display(Solver solver);             // 显示已经建立好的CNF公式
-void sat_solution(Solver solver);            // TODO:显示和输出求解器的结果
-char* sudoku_select(int diffculty, int size);// TODO:通过难度和SIZE选择数独
+void sat_solution(Solver solver);            // 显示和输出求解器的结果
+char* sudoku_select(int size);               // 选择不同SIZE的数独
 Sudoku sudoku_display(char* path);           // 数独显示
 void sudoku_solution_display(Sudoku sudoku); // 数独结果显示
 

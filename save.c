@@ -31,10 +31,36 @@ int res_save(const char* cnf_file, Solver s)
 
     fprintf(fp, "\n");
     fprintf(fp, "t: %dms\n", (int)(s->time * 1000));
-    fprintf(fp, "args:\n"); // TODO:输出控制参数
+    fprintf(fp, "args:\n");
+
+    fprintf(fp, "   UIP:         ");
+    #ifdef UIP
+    fprintf(fp, "True\n");
+    #else
+    fprintf(fp, "False\n");
+    #endif
+
+    fprintf(fp, "   using restart:");
+    #ifdef  RESTART
+    fprintf(fp,"True");
+    fprintf(fp, "initial series:%d", ORIGINAL_SERIES);
+    fprintf(fp, "   ratio:%d\n", RATIO);
+    #else
+    fprintf(fp, "False\n");
+    #endif
+
+    fprintf(fp, "   using shrink:");
+    #ifdef SHRINK
+    fprintf(fp,"True");
+    fprintf(fp, "      threshold:%d\n", THRESHOLD);
+    #else
+    fprintf(fp, "False\n");
+    #endif
+
     fprintf(fp, "other: ");
     fprintf(fp, "var decision times:%d rule times:%d clauses_num:%d\n\n",
         s->decision_times, s->rule_times, s->clause_num);
+    fclose(fp);
     return 0;
 }
 #endif

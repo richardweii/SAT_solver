@@ -5,25 +5,7 @@
 #include<stdlib.h>
 #include<time.h>
 #include"sat.h"
-#define INTERVAL 10
-#define ORIGINAL_SERIES 100
-#define RATIO 1.5
-// #define DEBUG
-// #define RESTART
-#define SHRINK
-// TODO:重构dpll参数部分，使其能够控制使用某些功能和参数
-// #define RESTART_INTERVAL 60
 
-void show_in_time(Solver s, int timer)
-{
-    printf("\nAfter %d second:\n", timer);
-    printf("decision times:  %d\n", s->decision_times);
-    printf("rule times:      %d\n", s->rule_times);
-    printf("clause num:      %d\n", s->clause_num);
-    printf("decision level:  %d\n", s->search_tree->top->level);
-    printf("tree height:     %d\n", s->search_tree->height);
-    printf("sat num:         %d\n", s->cluase_sat_num);
-}
 
 void DPLL(Solver solver)
 {
@@ -68,7 +50,6 @@ void DPLL(Solver solver)
             }
             if((time_now = ((clock() - start_t) / CLOCKS_PER_SEC)) >= timer_show)
             {
-                show_in_time(solver, time_now);
                 timer_show += INTERVAL;
                 if(timer_show  > 5000)
                 {
@@ -78,12 +59,6 @@ void DPLL(Solver solver)
                     break;
                 }
             }
-            #ifdef DEBUG
-            if(time_now > INTERVAL)
-            {
-                breakpoint += 1;
-            }
-            #endif
             if((level = conflict_clause_learning(solver)) < 0)   // 回溯到第几层)
             {
             // 出口二：无法向上回溯
@@ -93,10 +68,8 @@ void DPLL(Solver solver)
             #ifdef SHRINK
             if(solver->clause_num - solver->original_clauses > gap)
             {
-                int a = solver->clause_num;
                 gap *= 1.2;
-                clause_delete(solver, 8);
-                printf("Delete %d clause\n", a - solver->clause_num);
+                clause_delete(solver, THRESHOLD);
             }
             #endif
             #ifdef RESTART
@@ -302,6 +275,7 @@ int conflict_clause_learning(Solver solver)
     while(!Q_empty(solver->cause_queue))
     {
         v_order = Q_out(solver->cause_queue);
+        #ifdef UIP
         if(Q_empty(solver->cause_queue) && v_order != conflict_var)
         {
             sign = solver->ref_sets[v_order]->status == True ? Negative : Positive;
@@ -310,6 +284,7 @@ int conflict_clause_learning(Solver solver)
             result = True;
             break;
         }
+        #endif
         cr = solver->ref_sets[v_order]->clause_ref_head;
         for(; cr != NULL; cr = cr->next)
         {
@@ -478,70 +453,3 @@ void decay(Solver solver)
         solver->ref_sets[i]->negative_score *= DECAY;
     }
 }
-
-#ifndef _DPLL_INC_
-#ifndef _CNFPARSE_INC_
-#define _CNFPARSE_INC_
-#include"cnfparse.c"
-#endif
-void show_tree(Node n, int num)
-{
-    if(n->ancestor != NULL)
-    {
-        show_tree(n->ancestor, num - 1);
-        printf("Level %d and tree height %d: the variable is %d and the status is %d\n", n->level, num, n->var.order + 1, n->var.status);
-    }
-}
-
-#ifndef DEBUG
-int main(int argc, char const *argv[])
-{
-    if(argc < 2)
-    {
-        printf("EXCEPTION:need at least two arguments!!");
-        exit(1);
-    }
-    char* res_path = "result.res";
-    FILE* fp = fopen(res_path, "a+");
-    for(int i = 1; i < argc; i++)
-    {
-        int restart = 0;
-        char const* path = argv[i];
-        // char* path = "example\\sat-20.cnf";
-        Solver solver = input_parse(path);
-        // cnf_display(solver);
-        DPLL(solver);
-        // printf("Finish:  %s\n", argv[i]);
-        fprintf(fp, "SAMPLE:  %s\n", argv[i]);
-        #ifdef RESTART
-        restart = 1;
-        #endif
-        fprintf(fp, "USINGE RESTART: %d\n", restart);
-        fprintf(fp, "Result:%d time:%f  var decision times:%d rule times:%d\n\n", solver->sat, solver->time, solver->decision_times, solver->rule_times);
-        printf("Result:%d time:%f  var decision times:%d rule times:%d clauses_num:%d\n\n",
-         solver->sat, solver->time, solver->decision_times, solver->rule_times, solver->clause_num);
-        if(solver->sat == True)
-        {
-            // show_tree(solver->search_tree->top, solver->search_tree->height);
-        }
-    }
-    return 0;
-}
-#else
-int main(int argc, char const *argv[])
-{
-    char* path = "example\\sat-20.cnf";
-    // char* path = "example\\UF225.960.100\\uf200-03.cnf";
-    // char* path = "example\\M\\m-mod2c-rand3bip-sat-220-3.shuffled-as.sat05-2490-311.cnf";
-    Solver solver = input_parse(path);
-    cnf_display(solver);
-    solver = DPLL(solver);
-    if(solver->sat == True)
-    {
-        // show_tree(solver->search_tree->top, solver->search_tree->height);
-    }
-    return 0;
-}
-#endif
-
-#endif
