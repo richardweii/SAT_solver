@@ -283,11 +283,14 @@ void sudoku_rule3(Sudoku s)
         s->cla_next++;
         for(col = 1; col <= s->size; col++)
         {
-            s->contents[s->cla_next][0] = -s->var_next;
-            s->contents[s->cla_next][1] = -(s->var_next - 1 - 3*(col - 1));
+            s->contents[s->cla_next][0] = s->var_next;
+            s->contents[s->cla_next][1] = s->var_next - 1 - 3*(col - 1);
             s->contents[s->cla_next][2] = 0;
             s->cla_next++;
         }
+        s->contents[s->cla_next][0] = s->var_next;
+        s->contents[s->cla_next][1] = 0;
+        s->cla_next++;
         s->var_next++;
     }
     int col1,col2, row;
@@ -358,11 +361,14 @@ void sudoku_rule3(Sudoku s)
         s->cla_next++;
         for(row = 1; row <= s->size; row++)
         {
-            s->contents[s->cla_next][0] = -s->var_next;
-            s->contents[s->cla_next][1] = -(s->var_next - 1 - 3*(row - 1));
+            s->contents[s->cla_next][0] = s->var_next;
+            s->contents[s->cla_next][1] = s->var_next - 1 - 3*(row - 1);
             s->contents[s->cla_next][2] = 0;
             s->cla_next++;
         }
+        s->contents[s->cla_next][0] = s->var_next;
+        s->contents[s->cla_next][1] = 0;
+        s->cla_next++;
         s->var_next++;
     }
 }
@@ -402,7 +408,7 @@ int get_addition_clause_num(int size)
     int r1 = 2 * (size - 2) * size * 2;
     Comb c = comb(size, size / 2 + 1);
     int r2 = c->num * size * 4;
-    int r3 = size * (size - 1) * (9 * size + size + 1);
+    int r3 = size * (size - 1) * (9 * size + size + 2);
     return r1 + r2 + r3;
 }
 

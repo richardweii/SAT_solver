@@ -105,14 +105,14 @@ int main()
 int main()
 {   
     // char* sudoku_path = sudoku_select(6);
-    char* sudoku_path = "D:\\WorkSpace\\SAT\\example\\sudoku\\6_1.sudoku";
+    char* sudoku_path = "D:\\WorkSpace\\SAT\\example\\sudoku\\6_2.sudoku";
     Sudoku s = sudoku_display(sudoku_path);
 
     sudoku_rule1(s);
     sudoku_rule2(s);
     sudoku_rule3(s);
 
-    sudoku_solve(s, True);
+    sudoku_solve(s);
     sudoku_solution_display(s);
     return 0;
 }
