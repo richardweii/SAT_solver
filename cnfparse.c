@@ -65,7 +65,7 @@ Solver input_parse(const char* path)
                     }
                 }
                 solver->clause_set = creat_clause_set();
-                solver->ref_sets = creat_clause_ref_set(solver->variable_num);
+                solver->var_info_set = creat_clause_ref_set(solver->variable_num);
                 if(line == -1)
                     line = 0;
                 else
@@ -99,7 +99,7 @@ Solver input_parse(const char* path)
                             num = num * 10 + (buffer[i] - '0');
                         }
                         add_literal(solver->clause_set[line], num - 1, sign);
-                        add_clause_ref(solver->ref_sets[num - 1], line, sign);
+                        add_clause_ref(solver->var_info_set[num - 1], line, sign);
                     }
                     else if(buffer[i] > '0' && buffer[i] <= '9')
                     {
@@ -110,7 +110,7 @@ Solver input_parse(const char* path)
                             num = num * 10 + (buffer[i] - '0');
                         }
                         add_literal(solver->clause_set[line], num - 1, sign);
-                        add_clause_ref(solver->ref_sets[num - 1], line, sign);
+                        add_clause_ref(solver->var_info_set[num - 1], line, sign);
                     }
                     else if(buffer[i] == '0')
                     {
@@ -139,7 +139,7 @@ Solver creat_solver()
     s->search_tree->top->level = 0;
     s->clause_num = 0;
     s->next_place = 0;
-    s->cluase_sat_num = 0;
+    s->clause_sat_num = 0;
     s->sat = Unknown;
     s->time = 0;
     s->decision_times = 0;
@@ -176,12 +176,12 @@ void add_literal(Clause c, int var_order, Sign sign)
     c->length += 1;
 }
 
-Clause_ref_set* creat_clause_ref_set(int var_num)
+Var_info* creat_clause_ref_set(int var_num)
 {
-    Clause_ref_set* cr_sets = (Clause_ref_set*)malloc(sizeof(Clause_ref_set) * var_num);
+    Var_info* cr_sets = (Var_info*)malloc(sizeof(Var_info) * var_num);
     for(int i = 0; i < var_num; i++)
     {
-        cr_sets[i] = (Clause_ref_set)malloc(sizeof(struct clause_ref_set_));
+        cr_sets[i] = (Var_info)malloc(sizeof(struct var_info_));
         cr_sets[i]->positive_score = cr_sets[i]->negative_score = 0;
         cr_sets[i]->is_decision_var = Unknown;
         cr_sets[i]->status = Unknown;
@@ -191,7 +191,7 @@ Clause_ref_set* creat_clause_ref_set(int var_num)
     return cr_sets;
 }
 
-void add_clause_ref(Clause_ref_set cr_set, int clause_order, Sign sign)
+void add_clause_ref(Var_info cr_set, int clause_order, Sign sign)
 {
     Clause_ref p = cr_set->clause_ref_head;
     cr_set->clause_ref_head = (Clause_ref)malloc(sizeof(struct clause_ref_));
@@ -208,16 +208,16 @@ void count_score(Solver solver, Clause c, int mode)
         if(mode == 1)
         {
             if(l->sign == Positive)
-                solver->ref_sets[l->order]->positive_score += (1.0 / c->length) * 20;
+                solver->var_info_set[l->order]->positive_score += (1.0 / c->length) * 20;
             else
-                solver->ref_sets[l->order]->negative_score += (1.0 / c->length) * 20;
+                solver->var_info_set[l->order]->negative_score += (1.0 / c->length) * 20;
         }
         else
         {
             if(l->sign == Positive)
-                solver->ref_sets[l->order]->positive_score += 1.0;
+                solver->var_info_set[l->order]->positive_score += 1.0;
             else
-                solver->ref_sets[l->order]->negative_score += 1.0;
+                solver->var_info_set[l->order]->negative_score += 1.0;
         }
     }
 }

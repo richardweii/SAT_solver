@@ -12,9 +12,9 @@
 #define INTERVAL 10
 #define ORIGINAL_SERIES 100
 #define RATIO 1.5
+#define UIP
 // #define RESTART
 #define SHRINK
-// #define UIP
 #ifdef SHRINK
 #define THRESHOLD 8
 #endif
@@ -83,8 +83,8 @@ typedef struct clause_ref_
     struct clause_ref_* next; // 构建链表
 }* Clause_ref;
 
-/* 子句引用集，存储变量的信息 */
-typedef struct clause_ref_set_
+/* 变量信息体，存储变量的信息 */
+typedef struct var_info_
 {
     double positive_score;  // 正文字的score
     double negative_score;  // 负文字的score
@@ -92,7 +92,7 @@ typedef struct clause_ref_set_
     int level;  // 变量所被赋值的决策层
     Status is_decision_var; // 是否是决策变量
     Clause_ref clause_ref_head; // 子句引用链表
-}* Clause_ref_set;
+}* Var_info;
 
 /* 决策结点，记录DPLL过程，可进行有效链状回溯 */
 typedef struct node_
@@ -115,7 +115,7 @@ typedef struct solver
 {
     Status sat;                 // 可满足性，1、0分别表示满足和不满足
     int variable_num;           // 子句集中所含的变元数量
-    int cluase_sat_num;         // 子句集中已满足的子句的数量
+    int clause_sat_num;         // 子句集中已满足的子句的数量
     int clause_num;             // 子句集中所含子句的数量 
     int original_clauses;       // 原生子句的数量
     int next_place;             // 下一个安放学习子句的位置索引
@@ -125,7 +125,7 @@ typedef struct solver
     Queue clause_queue;         // 长度为1的子句装入队列中
     Queue cause_queue;          // 冲突节点队列
     Clause* clause_set;         // 指向子句指针区域的指针, 构建 子句-文字 链表数组
-    Clause_ref_set* ref_sets;   // 指向子句引用区域的指针, 构建 变量-子句引用 链表数组
+    Var_info* var_info_set;     // 指向变量信息体区域的指针, 构建 变量-子句引用 链表数组
     Tree search_tree;           // 搜索链用来得到变量的赋值情况
 }* Solver;
 
@@ -173,8 +173,8 @@ Solver input_parse(const char* path);   // 文件输入和解析
 Clause* creat_clause_set();   // 创建空子句集
 void add_clause(Solver s); // 添加空子句
 void add_literal(Clause c, int var_order, Sign sign);   // 向子句中添加文字
-Clause_ref_set* creat_clause_ref_set(int var_num); // 创建空的子句引用集
-void add_clause_ref(Clause_ref_set cr_set, int clause_order, Sign sign);  // 添加子句引用
+Var_info* creat_clause_ref_set(int var_num); // 创建空的子句引用集
+void add_clause_ref(Var_info var_info, int clause_order, Sign sign);  // 添加子句引用
 void count_score(Solver solver, Clause c, int mode);  // 对指定子句中的文字进行计分更新
 int res_save(const char* path, Solver solver);  // 结果保存
 
@@ -195,7 +195,7 @@ void clause_delete(Solver solver, int threshold);   // 删除长度大于thresho
 
 
 /******* 数独 ***********/
-void sudoku_solve(Sudoku s, Status need_save);// 数独求解以及CNF文件输出
+void sudoku_solve(Sudoku s);// 数独求解以及CNF文件输出
 Sudoku sudoku_parse(char* path);    // 从文件读入数独基本信息
 int get_addition_clause_num(int size);       // 指定大小的数独格局需要的约束子句个数
 int get_variable_num(int size);     // 指定大小的数独格局需要的变元个数

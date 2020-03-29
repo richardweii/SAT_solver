@@ -1,5 +1,4 @@
 /* 程序入口 */
-#define _DPLL_INC_
 // #define MODULE_TESTING
 #include<stdio.h>
 #include<stdlib.h>
@@ -41,14 +40,14 @@ int main()
                 int size;
                 printf("input the size of sudoku:[6 0r 8 or 10 or 12 or 14]:");
                 scanf("%d", &size);
-                char* sudoku_path = sudoku_select(6);
+                char* sudoku_path = sudoku_select(size);
                 Sudoku s = sudoku_display(sudoku_path);
 
                 sudoku_rule1(s);
                 sudoku_rule2(s);
                 sudoku_rule3(s);
-
-                sudoku_solve(s, False);
+                
+                sudoku_solve(s);
                 sudoku_solution_display(s);
                 break;
             }
@@ -81,7 +80,7 @@ int main()
 #ifdef MODULE_TESTING
 // 会执行下列模块测试中的最先被定义的那个，可以通过注释来选择测试的模块
 // 不注释就会执行DPLL测试，注释第一个就会执行sudoku测试，注释掉前两个就会执行cnf文件解析测试
-#define DPLL_TESTING
+// #define DPLL_TESTING
 #define SUDOKU_TESTING
 #define CNF_PARSE_TESTING
 
@@ -105,14 +104,15 @@ int main()
 #undef CNF_PARSE_TESTING
 int main()
 {   
-    char* sudoku_path = sudoku_select(6);
+    // char* sudoku_path = sudoku_select(6);
+    char* sudoku_path = "D:\\WorkSpace\\SAT\\example\\sudoku\\6_1.sudoku";
     Sudoku s = sudoku_display(sudoku_path);
 
     sudoku_rule1(s);
     sudoku_rule2(s);
     sudoku_rule3(s);
 
-    sudoku_solve(s, False);
+    sudoku_solve(s, True);
     sudoku_solution_display(s);
     return 0;
 }
@@ -295,7 +295,7 @@ void sat_solution(Solver solver)
         for(int i = 0; i < solver->variable_num; i++)
         {
             printf("Variable %3d :", i + 1);
-            if(solver->ref_sets[i]->status == True)
+            if(solver->var_info_set[i]->status == True)
                 printf("True\n");
             else
                 printf("False\n");

@@ -455,7 +455,7 @@ int encode_var(int row, int col, int size)
     return (row - 1)* size + col;
 }
 
-void sudoku_solve(Sudoku sudoku, Status need_save)
+void sudoku_solve(Sudoku sudoku)
 {
     Solver solver = sudoku_to_cnf(sudoku);
     char* temp_path = "example\\sudoku\\temp.cnf";
@@ -463,24 +463,28 @@ void sudoku_solve(Sudoku sudoku, Status need_save)
     sudoku_solution(sudoku, solver);
     char* newname = (char*)malloc(sizeof(char) * 40);
     char* buffer = (char*)malloc(sizeof(char) * 20);
-    if(need_save)
+    printf("Input the save name of cnf file converted from sudoku with end of '.cnf' or \
+just input the '0' to skip the save:  ");
+    strcat(newname, "example\\sudoku\\");
+    scanf("%s", buffer);
+    if(buffer[0] == '0' && buffer[1] == 0)
     {
-        printf("Input the save name of cnf file converted from sudoku with end of '.cnf':  ");
-        strcat(newname, "example\\sudoku\\");
-        scanf("%s", buffer);
+        remove(temp_path);
+    }
+    else
+    {
         strcat(newname, buffer);
         rename(temp_path, newname);
     }
-    else
-    {   
-        remove(temp_path);
-    }
+    printf("press the Enter key to show the answer");
+    getchar();
+    getchar();
 }
 
 void sudoku_solution(Sudoku sudoku, Solver solver)
 {
     sudoku->solution = (int*)malloc(sizeof(int) * sudoku->size * sudoku->size);
     for(int i = 0; i < sudoku->size * sudoku->size; i++)
-        sudoku->solution[i] = solver->ref_sets[i]->status;
+        sudoku->solution[i] = solver->var_info_set[i]->status;
 }
 #endif

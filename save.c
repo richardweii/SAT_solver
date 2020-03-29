@@ -23,7 +23,7 @@ int res_save(const char* cnf_file, Solver s)
     if(s->sat == True)
         for(int i = 0 ; i < s->variable_num; i++)
         {
-            if(s->ref_sets[i]->status == True)
+            if(s->var_info_set[i]->status == True)
                 fprintf(fp, "  %d", i+1);
             else
                 fprintf(fp, " -%d", i+1);

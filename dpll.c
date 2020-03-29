@@ -148,10 +148,10 @@ void tree_grows(Solver solver, Variable v, Status is_decision)
 Status update(Solver solver, Variable v)
 {
     Status result = Unknown;
-    solver->ref_sets[v.order]->status = v.status;
-    solver->ref_sets[v.order]->is_decision_var = solver->search_tree->top->is_decision_node;
-    solver->ref_sets[v.order]->level = solver->search_tree->top->level;
-    Clause_ref cr = solver->ref_sets[v.order]->clause_ref_head;
+    solver->var_info_set[v.order]->status = v.status;
+    solver->var_info_set[v.order]->is_decision_var = solver->search_tree->top->is_decision_node;
+    solver->var_info_set[v.order]->level = solver->search_tree->top->level;
+    Clause_ref cr = solver->var_info_set[v.order]->clause_ref_head;
     for (; cr != NULL; cr = cr->next)
     {
         if(solver->clause_set[cr->order]->status == True)
@@ -160,9 +160,9 @@ Status update(Solver solver, Variable v)
         if(check_literal(cr->sign, v.status))
         {
             solver->clause_set[cr->order]->status = True;
-            solver->cluase_sat_num += 1;
+            solver->clause_sat_num += 1;
             solver->clause_set[cr->order]->cause_order = v.order;
-            if(solver->clause_num == solver->cluase_sat_num)
+            if(solver->clause_num == solver->clause_sat_num)
                 result = True;
         }
         else if(solver->clause_set[cr->order]->length == 0)
@@ -205,7 +205,7 @@ Status single_rule(Solver solver)
         if(solver->clause_set[order]->status != Unknown)
             continue;
         l = solver->clause_set[order]->l_head;
-        for(; l != NULL && solver->ref_sets[l->order]->status != Unknown; l = l->next);
+        for(; l != NULL && solver->var_info_set[l->order]->status != Unknown; l = l->next);
         if(l == NULL)
         {
             printf("EXCEPTION:cannot find that literal in clause %d", order + 1);
@@ -231,9 +231,9 @@ Status pure_rule(Solver solver)
     for(int i = 0; i < solver->variable_num; i++)
     {
         sign = Unknown;
-        if(solver->ref_sets[i]->status != Unknown)
+        if(solver->var_info_set[i]->status != Unknown)
             continue;
-        cr = solver->ref_sets[i]->clause_ref_head;
+        cr = solver->var_info_set[i]->clause_ref_head;
         for(;cr != NULL; cr = cr->next)
         {
             if(solver->clause_set[cr->order]->status != Unknown)
@@ -278,14 +278,14 @@ int conflict_clause_learning(Solver solver)
         #ifdef UIP
         if(Q_empty(solver->cause_queue) && v_order != conflict_var)
         {
-            sign = solver->ref_sets[v_order]->status == True ? Negative : Positive;
+            sign = solver->var_info_set[v_order]->status == True ? Negative : Positive;
             add_literal(solver->clause_set[solver->next_place - 1], v_order, sign);
-            add_clause_ref(solver->ref_sets[v_order], solver->next_place - 1, sign);
+            add_clause_ref(solver->var_info_set[v_order], solver->next_place - 1, sign);
             result = True;
             break;
         }
         #endif
-        cr = solver->ref_sets[v_order]->clause_ref_head;
+        cr = solver->var_info_set[v_order]->clause_ref_head;
         for(; cr != NULL; cr = cr->next)
         {
             if(solver->clause_set[cr->order]->cause_order != v_order || solver->clause_set[cr->order]->length != 0) 
@@ -293,18 +293,18 @@ int conflict_clause_learning(Solver solver)
             L = solver->clause_set[cr->order]->l_head;
             for(; L != NULL; L = L->next)
             {
-                if(mark[L->order] == True || solver->ref_sets[L->order]->level == 0)
+                if(mark[L->order] == True || solver->var_info_set[L->order]->level == 0)
                     continue;
-                if(solver->ref_sets[L->order]->level < level || solver->ref_sets[L->order]->is_decision_var == True)
+                if(solver->var_info_set[L->order]->level < level || solver->var_info_set[L->order]->is_decision_var == True)
                 {
                     result = True;
-                    if(solver->ref_sets[L->order]->level != level && solver->ref_sets[L->order]->level > level_back)
-                        level_back = solver->ref_sets[L->order]->level;
+                    if(solver->var_info_set[L->order]->level != level && solver->var_info_set[L->order]->level > level_back)
+                        level_back = solver->var_info_set[L->order]->level;
                     // 添加其他层的冲突因子文字
                     mark[L->order] = True;  // 表示该变元已经检查过了
-                    sign = solver->ref_sets[L->order]->status == True ? Negative : Positive;
+                    sign = solver->var_info_set[L->order]->status == True ? Negative : Positive;
                     add_literal(solver->clause_set[solver->next_place - 1], L->order, sign);
-                    add_clause_ref(solver->ref_sets[L->order], solver->next_place - 1, sign);
+                    add_clause_ref(solver->var_info_set[L->order], solver->next_place - 1, sign);
                 }
                 else if(!mark[L->order])
                 {
@@ -333,20 +333,20 @@ void backtrack(Solver solver, int level, Status is_restart)
     {
         v.order = p->var.order;
         v.status = p->var.status;
-        for(cr = solver->ref_sets[v.order]->clause_ref_head; cr != NULL; cr = cr->next)
+        for(cr = solver->var_info_set[v.order]->clause_ref_head; cr != NULL; cr = cr->next)
         {
             if(solver->clause_set[cr->order]->status == True && solver->clause_set[cr->order]->cause_order != v.order)
                 continue;   // 表示这个子句在之前已经满足
             else if(solver->clause_set[cr->order]->status == True)
-                solver->cluase_sat_num -= 1;    // 恢复一个已满足的子句
+                solver->clause_sat_num -= 1;    // 恢复一个已满足的子句
             solver->clause_set[cr->order]->status = Unknown;
             solver->clause_set[cr->order]->length += 1;
             solver->clause_set[cr->order]->cause_order = Unknown;
         }
         p = p->ancestor;
-        solver->ref_sets[v.order]->status = Unknown;
-        solver->ref_sets[v.order]->level = Unknown;
-        solver->ref_sets[v.order]->is_decision_var = Unknown;
+        solver->var_info_set[v.order]->status = Unknown;
+        solver->var_info_set[v.order]->level = Unknown;
+        solver->var_info_set[v.order]->is_decision_var = Unknown;
         free(solver->search_tree->top);
         solver->search_tree->top = p;
         solver->search_tree->height -= 1;
@@ -363,17 +363,17 @@ Variable var_decision(Solver solver)
     int order;
     for(int i = 0; i < solver->variable_num; i++)
     {
-        if(solver->ref_sets[i]->status != Unknown)
+        if(solver->var_info_set[i]->status != Unknown)
             continue;
-        if(score < solver->ref_sets[i]->positive_score)
+        if(score < solver->var_info_set[i]->positive_score)
         {
-            score = solver->ref_sets[i]->positive_score;
+            score = solver->var_info_set[i]->positive_score;
             order = i;
             status = True;
         }
-        if(score < solver->ref_sets[i]->negative_score)
+        if(score < solver->var_info_set[i]->negative_score)
         {
-            score = solver->ref_sets[i]->negative_score;
+            score = solver->var_info_set[i]->negative_score;
             order = i;
             status = False;
         }
@@ -399,7 +399,7 @@ void clause_delete(Solver solver, int threshold)
         if(solver->clause_set[i] == NULL || solver->clause_set[i]->length < threshold || solver->clause_set[i]->status != True)
             continue;
         solver->clause_num --;
-        solver->cluase_sat_num --;
+        solver->clause_sat_num --;
         l = solver->clause_set[i]->l_head;
         while(l != NULL)
         {
@@ -414,7 +414,7 @@ void clause_delete(Solver solver, int threshold)
     Clause_ref cr, pr;
     for(i = 0; i < solver->variable_num; i++)
     {
-        cr = solver->ref_sets[i]->clause_ref_head;
+        cr = solver->var_info_set[i]->clause_ref_head;
         while(solver->clause_set[cr->order] == NULL)
         {
             pr = cr->next;
@@ -425,7 +425,7 @@ void clause_delete(Solver solver, int threshold)
                 exit(1);
             }
             free(cr);
-            solver->ref_sets[i]->clause_ref_head = pr;
+            solver->var_info_set[i]->clause_ref_head = pr;
             cr = pr;
         }
         pr = cr;
@@ -449,7 +449,7 @@ void decay(Solver solver)
 {
     for(int i = 0; i < solver->variable_num; i++)
     {
-        solver->ref_sets[i]->positive_score *= DECAY;
-        solver->ref_sets[i]->negative_score *= DECAY;
+        solver->var_info_set[i]->positive_score *= DECAY;
+        solver->var_info_set[i]->negative_score *= DECAY;
     }
 }
