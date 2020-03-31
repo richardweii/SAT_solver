@@ -12,9 +12,9 @@
 #define INTERVAL 10
 #define ORIGINAL_SERIES 100
 #define RATIO 1.5
-#define UIP
+// #define UIP
 // #define RESTART
-#define SHRINK
+// #define SHRINK
 #ifdef SHRINK
 #define THRESHOLD 8
 #endif
@@ -173,7 +173,7 @@ Solver input_parse(const char* path);   // 文件输入和解析
 Clause* creat_clause_set();   // 创建空子句集
 void add_clause(Solver s); // 添加空子句
 void add_literal(Clause c, int var_order, Sign sign);   // 向子句中添加文字
-Var_info* creat_clause_ref_set(int var_num); // 创建空的子句引用集
+Var_info* creat_var_info_set(int var_num); //           创建空的变元信息体集
 void add_clause_ref(Var_info var_info, int clause_order, Sign sign);  // 添加子句引用
 void count_score(Solver solver, Clause c, int mode);  // 对指定子句中的文字进行计分更新
 int res_save(const char* path, Solver solver);  // 结果保存

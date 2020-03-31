@@ -65,7 +65,7 @@ Solver input_parse(const char* path)
                     }
                 }
                 solver->clause_set = creat_clause_set();
-                solver->var_info_set = creat_clause_ref_set(solver->variable_num);
+                solver->var_info_set = creat_var_info_set(solver->variable_num);
                 if(line == -1)
                     line = 0;
                 else
@@ -176,7 +176,7 @@ void add_literal(Clause c, int var_order, Sign sign)
     c->length += 1;
 }
 
-Var_info* creat_clause_ref_set(int var_num)
+Var_info* creat_var_info_set(int var_num)
 {
     Var_info* cr_sets = (Var_info*)malloc(sizeof(Var_info) * var_num);
     for(int i = 0; i < var_num; i++)

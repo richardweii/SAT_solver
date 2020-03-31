@@ -1,5 +1,5 @@
 /* 程序入口 */
-// #define MODULE_TESTING
+#define MODULE_TESTING
 #include<stdio.h>
 #include<stdlib.h>
 #include"sat.h"
@@ -80,22 +80,26 @@ int main()
 #ifdef MODULE_TESTING
 // 会执行下列模块测试中的最先被定义的那个，可以通过注释来选择测试的模块
 // 不注释就会执行DPLL测试，注释第一个就会执行sudoku测试，注释掉前两个就会执行cnf文件解析测试
-// #define DPLL_TESTING
+#define DPLL_TESTING
 #define SUDOKU_TESTING
 #define CNF_PARSE_TESTING
 
 #ifdef DPLL_TESTING
 #undef SUDOKU_TESTING
 #undef CNF_PARSE_TESTING
-int main()
+
+int main(int argc, char const *argv[])
 {
-    printf("input the path of cnf file:");
     char* path = (char*)malloc(sizeof(char) * 80);
-    scanf("%s", path);
-    Solver solver = input_parse(path);
-    DPLL(solver);
-    sat_solution(solver);
-    res_save(path, solver);
+    for(int i = 1; i < argc; i++ )
+    {
+        // printf("input the path of cnf file:");
+        // scanf("%s", path);
+        Solver solver = input_parse(argv[i]);
+        DPLL(solver);
+        sat_solution(solver);
+        res_save(argv[i], solver);
+    }
     return 0;
 }
 #endif
@@ -105,7 +109,7 @@ int main()
 int main()
 {   
     // char* sudoku_path = sudoku_select(6);
-    char* sudoku_path = "D:\\WorkSpace\\SAT\\example\\sudoku\\6_2.sudoku";
+    char* sudoku_path = "D:\\WorkSpace\\SAT\\example\\sudoku\\6_1.sudoku";
     Sudoku s = sudoku_display(sudoku_path);
 
     sudoku_rule1(s);
